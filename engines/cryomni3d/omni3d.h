@@ -35,11 +35,14 @@ public:
 	static const int kTileSize = 16;
 	static const int kDefaultWidth = 640;
 	static const int kDefaultHeight = 480;
-	// Dimensions du panorama SOURCE (les fichiers HLZ du jeu). À ne pas confondre
-	// avec la surface rendue : le centre vertical vaut kSrcHeight/2 = 384, pas
-	// kDefaultHeight/2 = 240. Confondre les deux décale tout le rendu.
-	static const int kSrcWidth = 2048;
-	static const int kSrcHeight = 768;
+	// Dimensions par défaut du panorama SOURCE (les fichiers HLZ du jeu). Ce sont
+	// des valeurs de repli : la taille réelle est lue sur la surface chargée, car
+	// le dossier de surcharge HD fournit des panoramas agrandis (×4 : 8192×3072).
+	// À ne pas confondre avec la surface rendue : le centre vertical vaut
+	// srcHeight/2 = 384, pas kDefaultHeight/2 = 240 — confondre les deux décale
+	// tout le rendu de 144 px.
+	static const int kDefaultSrcWidth = 2048;
+	static const int kDefaultSrcHeight = 768;
 	// Largeur de rendu effectivement utilisée, le temps de mettre au point
 	// l'élargissement : 640 = 4:3 d'origine, 848 = 16:9, 1120 = 21:9.
 	// Doit rester un multiple de kTileSize et ne pas dépasser kMaxCols*taille.
@@ -53,13 +56,14 @@ public:
 	Omni3DManager() : _vfov(0), _alpha(0), _beta(0), _xSpeed(0), _ySpeed(0), _alphaMin(0), _alphaMax(0),
 		_betaMin(0), _betaMax(0), _helperValue(0), _width(kDefaultWidth), _height(kDefaultHeight),
 		_cols(kDefaultWidth / kTileSize), _rows(kDefaultHeight / kTileSize),
+		_srcWidth(kDefaultSrcWidth), _srcHeight(kDefaultSrcHeight),
 		_dirty(true), _dirtyCoords(true),
 		_sourceSurface(nullptr) {}
 	virtual ~Omni3DManager();
 
 	void init(double hfov);
 
-	void setSourceSurface(const Graphics::Surface *surface) { _sourceSurface = surface; _dirty = true; }
+	void setSourceSurface(const Graphics::Surface *surface);
 
 	void clearConstraints();
 	void setAlphaConstraints(double alphaMin, double alphaMax) { _alphaMin = alphaMin; _alphaMax = alphaMax; }
@@ -102,6 +106,7 @@ private:
 
 	int _width, _height;   // surface rendue
 	int _cols, _rows;      // carreaux
+	int _srcWidth, _srcHeight;  // dimensions du panorama source effectivement chargé
 
 	bool _dirty;
 	bool _dirtyCoords;

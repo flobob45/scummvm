@@ -28,6 +28,19 @@
 
 namespace CryOmni3D {
 
+void Omni3DManager::setSourceSurface(const Graphics::Surface *surface) {
+	_sourceSurface = surface;
+	if (surface) {
+		// La taille du panorama fait foi : le dossier de surcharge HD fournit des
+		// images agrandies (×4), et toute la projection en dépend.
+		_srcWidth = surface->w;
+		_srcHeight = surface->h;
+		_helperValue = _srcWidth * 65536 / (2. * M_PI);
+	}
+	_dirty = true;
+	_dirtyCoords = true;
+}
+
 void Omni3DManager::init(double hfov) {
 	_alpha = 0.;
 	_beta = 0.;
@@ -50,9 +63,9 @@ void Omni3DManager::init(double hfov) {
 	_vfov = (M_PI_2 - vf - (13. / 180.*M_PI)) * 10. / 9.;
 
 	double warpVfov = 155. / 180. * M_PI;
-	double hypV = kSrcHeight / 2. / sin(warpVfov / 2.);
+	double hypV = _srcHeight / 2. / sin(warpVfov / 2.);
 	double oppHTot = tan(hfov / 2.) * kTileSize / (_width / 2.);
-	_helperValue = kSrcWidth * 65536 / (2. * M_PI);
+	_helperValue = _srcWidth * 65536 / (2. * M_PI);
 
 	for (int i = 0; i < _rows + 1; i++) {
 		double oppH = (i - _rows / 2) * oppHTot;
@@ -167,7 +180,7 @@ void Omni3DManager::updateImageCoords() {
 		for (j = 0; j < demiCols; j++) {
 			double v16 = atan2(_oppositeV[j], v25);
 			double v17 = v16 * _helperValue;
-			double v18 = ((kSrcHeight / 2) * 65536) - _squaresCoords[i][j] * v26;
+			double v18 = ((_srcHeight / 2) * 65536) - _squaresCoords[i][j] * v26;
 
 			k += 2;
 			_imageCoords[k + 0] = (int)(tmp + v17);
@@ -181,8 +194,8 @@ void Omni3DManager::updateImageCoords() {
 		double v19 = atan2(_oppositeV[j], v25);
 
 		k += 2;
-		_imageCoords[k + 0] = (int)((kSrcWidth * 65536.) - (_alpha - v19) * _helperValue);
-		_imageCoords[k + 1] = (int)(((kSrcHeight / 2) * 65536.) - _squaresCoords[i][j] * v26);
+		_imageCoords[k + 0] = (int)((_srcWidth * 65536.) - (_alpha - v19) * _helperValue);
+		_imageCoords[k + 1] = (int)(((_srcHeight / 2) * 65536.) - _squaresCoords[i][j] * v26);
 
 		k += demiCols * 2;
 	}
@@ -222,7 +235,7 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 		byte *dst = (byte *)_surface.getBasePtr(0, 0);
 		const byte *src = (const byte *)_sourceSurface->getBasePtr(0, 0);
 		const int pas = 2 * (_cols + 1);
-		const int masqueX = kSrcWidth - 1;   // kSrcWidth est une puissance de deux
+		const int masqueX = _srcWidth - 1;   // _srcWidth est une puissance de deux
 
 		for (int ty = 0; ty < _rows; ty++) {
 			for (int tx = 0; tx < _cols; tx++) {
@@ -238,8 +251,8 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 				// Raccord du cylindre : deux coins voisins peuvent tomber de part et
 				// d'autre de la couture (x = 2047 et x = 0). Sans ce recalage, leur
 				// interpolation traverse toute l'image et produit un déchirement.
-				const long demi = (long)kSrcWidth << 15;   // moitié de la largeur, en 16.16
-				const long tour = (long)kSrcWidth << 16;
+				const long demi = (long)_srcWidth << 15;   // moitié de la largeur, en 16.16
+				const long tour = (long)_srcWidth << 16;
 				int x10r = x10, x01r = x01;
 				if (x10r - x00 > demi) x10r -= tour; else if (x00 - x10r > demi) x10r += tour;
 				if (x01r - x00 > demi) x01r -= tour; else if (x00 - x01r > demi) x01r += tour;
@@ -258,8 +271,8 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 						int px = (int)(sx >> 16) & masqueX;
 						int py = (int)(sy >> 16);
 						if (py < 0) py = 0;
-						else if (py >= kSrcHeight) py = kSrcHeight - 1;
-						*dst++ = src[py * kSrcWidth + px];
+						else if (py >= _srcHeight) py = _srcHeight - 1;
+						*dst++ = src[py * _srcWidth + px];
 					}
 					dst += _width - kTileSize;
 				}
