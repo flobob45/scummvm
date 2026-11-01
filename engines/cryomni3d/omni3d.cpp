@@ -214,53 +214,58 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 	}
 
 	if (_dirty) {
-		uint off = 2;
+		// Rendu du cylindre : pour chaque carreau de la grille, on interpole
+		// bilinéairement les coordonnées source (16.16) de ses quatre coins.
+		// L'original faisait le même travail en fixed-point, mais avec un packing
+		// d'offsets calibré pour une source de 2048 de large, impossible à élargir.
+		// Cette version est paramétrable par kSrcWidth / kSrcHeight.
 		byte *dst = (byte *)_surface.getBasePtr(0, 0);
 		const byte *src = (const byte *)_sourceSurface->getBasePtr(0, 0);
+		const int pas = 2 * (_cols + 1);
+		const int masqueX = kSrcWidth - 1;   // kSrcWidth est une puissance de deux
 
-		// pas d'une ligne de nœuds à la suivante, en int (2 par nœud)
-		uint pas = 2 * (uint)(_cols + 1);
-		for (uint i = 0; i < (uint)_rows; i++) {
-			for (uint j = 0; j < (uint)_cols; j++) {
-				int x1  = (_imageCoords[off + 2] - _imageCoords[off + 0]) >> 4;
-				int y1  = (_imageCoords[off + 3] - _imageCoords[off + 1]) >> 4;
-				int x1_ = (_imageCoords[off + pas + 2] - _imageCoords[off + pas + 0]) >> 4;
-				int y1_ = (_imageCoords[off + pas + 3] - _imageCoords[off + pas + 1]) >> 4;
+		for (int ty = 0; ty < _rows; ty++) {
+			for (int tx = 0; tx < _cols; tx++) {
+				// +2 : updateImageCoords commence a remplir a l'indice 2 ; [0] et [1] ne
+				// sont jamais ecrits et contiennent des dechets.
+				const int i00 = ty * pas + 2 * tx + 2;
+				const int x00 = _imageCoords[i00],          y00 = _imageCoords[i00 + 1];
+				const int x10 = _imageCoords[i00 + 2],      y10 = _imageCoords[i00 + 3];
+				const int x01 = _imageCoords[i00 + pas],    y01 = _imageCoords[i00 + pas + 1];
+				int x11 = _imageCoords[i00 + pas + 2];
+				const int y11 = _imageCoords[i00 + pas + 3];
 
-				int dx1 = (x1_ - x1) >> 10;
-				int dy1 = (y1_ - y1) >> 15;
+				// Raccord du cylindre : deux coins voisins peuvent tomber de part et
+				// d'autre de la couture (x = 2047 et x = 0). Sans ce recalage, leur
+				// interpolation traverse toute l'image et produit un déchirement.
+				const long demi = (long)kSrcWidth << 15;   // moitié de la largeur, en 16.16
+				const long tour = (long)kSrcWidth << 16;
+				int x10r = x10, x01r = x01;
+				if (x10r - x00 > demi) x10r -= tour; else if (x00 - x10r > demi) x10r += tour;
+				if (x01r - x00 > demi) x01r -= tour; else if (x00 - x01r > demi) x01r += tour;
+				if (x11 - x00 > demi) x11 -= tour; else if (x00 - x11 > demi) x11 += tour;
 
-				y1 >>= 5;
-
-				int dx2  = (_imageCoords[off + pas + 0] - _imageCoords[off + 0]) >> 4;
-				int dy2  = (_imageCoords[off + pas + 1] - _imageCoords[off + 1]) >> 9;
-				int x2 = (((_imageCoords[off + 0] >> 0) * 2) + dx2) >> 1;
-				int y2 = (((_imageCoords[off + 1] >> 5) * 2) + dy2) >> 1;
-
-				for (uint y = 0; y < 16; y++) {
-					uint px = (x2 * 2 + x1) * 16;
-					uint py = (y2 * 2 + y1) / 2;
-					uint deltaX = x1 * 32;
-					uint deltaY = y1;
-
-					for (uint x = 0; x < 16; x++) {
-						uint srcOff = (py & 0x1ff800) | (px >> 21);
-						dst[x] = src[srcOff];
-						px += deltaX;
-						py += deltaY;
+				for (int y = 0; y < kTileSize; y++) {
+					for (int x = 0; x < kTileSize; x++) {
+						const long wx0 = (long)(kTileSize - x) * (kTileSize - y);
+						const long wx1 = (long)x * (kTileSize - y);
+						const long wx2 = (long)(kTileSize - x) * y;
+						const long wx3 = (long)x * y;
+						const long sx = ((long)x00 * wx0 + (long)x10r * wx1 +
+						                 (long)x01r * wx2 + (long)x11 * wx3) >> 8;
+						const long sy = ((long)y00 * wx0 + (long)y10 * wx1 +
+						                 (long)y01 * wx2 + (long)y11 * wx3) >> 8;
+						int px = (int)(sx >> 16) & masqueX;
+						int py = (int)(sy >> 16);
+						if (py < 0) py = 0;
+						else if (py >= kSrcHeight) py = kSrcHeight - 1;
+						*dst++ = src[py * kSrcWidth + px];
 					}
-					dst += _width;
-
-					x1 += dx1;
-					y1 += dy1;
-					x2 += dx2;
-					y2 += dy2;
+					dst += _width - kTileSize;
 				}
-				dst -= kTileSize * _width - kTileSize;
-				off += 2;
+				dst -= (long)_width * kTileSize - kTileSize;
 			}
-			dst += (kTileSize - 1) * _width;
-			off += 2;
+			dst += (long)_width * (kTileSize - 1);
 		}
 
 		_dirty = false;
