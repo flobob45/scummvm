@@ -3083,8 +3083,7 @@ void CryOmni3DEngine_Versailles::handleBombTranslation(Graphics::ManagedSurface 
 	uint w = _fontManager.getStrWidth(translation);
 	_fontManager.displayStr((640 - w) / 2, 440, translation);
 
-	copyToScreen(surface.getPixels(), surface.pitch, 0, 0,
-	                           surface.w, surface.h);
+	copyUIScreen(surface);
 	g_system->updateScreen();
 
 	uint32 end = g_system->getMillis() + 5000;
@@ -4841,10 +4840,14 @@ bool CryOmni3DEngine_Versailles::doCountDown() {
 
 void CryOmni3DEngine_Versailles::doDrawCountdown(Graphics::ManagedSurface *surface) {
 	if (surface) {
+		// Compte à rebours fondu dans une image 640x480 : il reste à sa place
+		// dans ce canevas (le coin supérieur droit de l'image).
 		surface->blitFrom(_countdownSurface, Common::Point(600, 0));
 	} else {
-		copyToScreen(_countdownSurface.getPixels(), _countdownSurface.pitch, 600, 0,
-		                           _countdownSurface.w, _countdownSurface.h);
+		// Affiché seul sur le panorama : ancré au coin supérieur droit de l'ÉCRAN.
+		const int scale = getUIScale();
+		copyUIAtScreen(_countdownSurface, Common::Rect(0, 0, _countdownSurface.w, _countdownSurface.h),
+		               g_system->getWidth() - _countdownSurface.w * scale, 0);
 	}
 }
 

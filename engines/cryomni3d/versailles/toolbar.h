@@ -100,6 +100,8 @@ private:
 
 	Graphics::Surface _bgSurface;
 	Graphics::ManagedSurface _destSurface;
+	// Bas de l'écran tel qu'il est derrière la barre (640x60), pour le fond translucide.
+	Graphics::ManagedSurface _bgStrip;
 
 	template<uint N>
 	uint callbackInventory(uint dragStatus) { return callbackInventory(N, dragStatus); }

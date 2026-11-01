@@ -292,7 +292,7 @@ uint Toolbar::callbackOptions(uint dragStatus) {
 		_engine->displayOptions();
 		_parentMustRedraw = true;
 		_shortExit = true;
-		_engine->setMousePos(Common::Point(320, 240)); // Center of screen
+		_engine->setUIMousePos(Common::Point(320, 240)); // Center of screen
 		// Displaying options hides the mouse
 		_engine->showMouse(true);
 		return 0;
@@ -315,7 +315,7 @@ uint Toolbar::callbackDocumentation(uint dragStatus) {
 		if (_engine->displayPlaceDocumentation()) {
 			_parentMustRedraw = true;
 			_shortExit = true;
-			_engine->setMousePos(Common::Point(320, 240)); // Center of screen
+			_engine->setUIMousePos(Common::Point(320, 240)); // Center of screen
 		}
 		return 0;
 	default:
@@ -329,8 +329,9 @@ void Toolbar::drawToolbar(const Graphics::Surface *original) {
 	}
 
 	if (_position != 0) {
-		// Not entirely drawn, we must copy a part of the original image
-		Common::Rect rct(0, 420, 640, 420 + _position);
+		// « original » est ici la bande de 640x60 réellement affichée derrière la
+		// barre : on en reprend le haut pour la partie encore découverte.
+		Common::Rect rct(0, 0, 640, _position);
 		_destSurface.copyRectToSurface(*original, 0, 0, rct);
 	}
 
@@ -406,10 +407,9 @@ bool Toolbar::displayToolbar(const Graphics::Surface *original) {
 	_shortExit = false;
 
 	// Prepare the background of the toolbar by making it translucent
-	// Get the lowest part of the image
-	const Graphics::Surface subset = original->getSubArea(Common::Rect(0, original->h - _bgSurface.h,
-	                                 _bgSurface.w, original->h));
-	_engine->makeTranslucent(_bgSurface, subset);
+	// What is really displayed behind the toolbar: the bottom of the screen.
+	_engine->captureToolbarBackground(*original, _bgStrip);
+	_engine->makeTranslucent(_bgSurface, _bgStrip);
 
 	// WORKAROUND: Reset the inventory status at init to let sprites highlighted until toolbar is hidden
 	_inventorySelected = uint(-1);
@@ -420,9 +420,8 @@ bool Toolbar::displayToolbar(const Graphics::Surface *original) {
 
 	for (_position = 60; _position > 0; _position--) {
 		// Make the toolbar go up
-		drawToolbar(original);
-		_engine->copyToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
-		                           original->h - _destSurface.h, _destSurface.w, _destSurface.h);
+		drawToolbar(&_bgStrip.rawSurface());
+		_engine->copyUIToolbar(_destSurface);
 		g_system->updateScreen();
 
 		// Slow down animation
@@ -438,7 +437,7 @@ bool Toolbar::displayToolbar(const Graphics::Surface *original) {
 	_engine->clearKeys();
 	_engine->waitMouseRelease();
 
-	handleToolbarEvents(original);
+	handleToolbarEvents(&_bgStrip.rawSurface());
 	if (_engine->shouldAbort()) {
 		return false;
 	}
@@ -449,9 +448,8 @@ bool Toolbar::displayToolbar(const Graphics::Surface *original) {
 
 	for (_position = 0; _position <= 60; _position++) {
 		// Make the toolbar go up
-		drawToolbar(original);
-		_engine->copyToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
-		                           original->h - _destSurface.h, _destSurface.w, _destSurface.h);
+		drawToolbar(&_bgStrip.rawSurface());
+		_engine->copyUIToolbar(_destSurface);
 		g_system->updateScreen();
 
 		// Slow down animation
@@ -481,15 +479,18 @@ void Toolbar::handleToolbarEvents(const Graphics::Surface *original) {
 	updateZones();
 
 	// No need of original surface because the toolbar is fully displayed
-	drawToolbar(original);
+	drawToolbar(&_bgStrip.rawSurface());
 
-	_engine->copyToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
-	                           original->h - _destSurface.h, _destSurface.w, _destSurface.h);
+	_engine->copyUIToolbar(_destSurface);
 	g_system->updateScreen();
 
 	_engine->setCursor(181);
 
-	mouseInsideToolbar = (_engine->getMousePos().y > 388);
+	// La barre est collée au bas de l'écran : son haut, exprimé en 640x480, sert
+	// de repère aux zones de clic (elles-mêmes en 640x60) et au seuil de sortie.
+	const int toolbarTop = _engine->getUIToolbarTop();
+	const int triggerY = toolbarTop - 32; // même marge de 32 px qu'en 640x480
+	mouseInsideToolbar = (_engine->getUIMousePos().y > triggerY);
 
 	while (!exitToolbar) {
 		_mouseInOptions = false;
@@ -509,8 +510,8 @@ void Toolbar::handleToolbarEvents(const Graphics::Surface *original) {
 			break;
 		}
 
-		Common::Point mousePosInToolbar = _engine->getMousePos();
-		mousePosInToolbar -= Common::Point(0, 420);
+		Common::Point mousePosInToolbar = _engine->getUIMousePos();
+		mousePosInToolbar -= Common::Point(0, toolbarTop);
 
 		if (captureEvent(mousePosInToolbar, _engine->getDragStatus())) {
 			// Something has changed with the zones handling, update zones
@@ -528,8 +529,8 @@ void Toolbar::handleToolbarEvents(const Graphics::Surface *original) {
 		}
 
 		if (!mouseInsideToolbar) {
-			mouseInsideToolbar = (_engine->getMousePos().y > 388);
-		} else if (_engine->getMousePos().y <= 388) {
+			mouseInsideToolbar = (_engine->getUIMousePos().y > triggerY);
+		} else if (_engine->getUIMousePos().y <= triggerY) {
 			// mouseInsideToolbar is true and the mouse is outside the toolbar
 			exitToolbar = true;
 			break;
@@ -585,9 +586,8 @@ void Toolbar::handleToolbarEvents(const Graphics::Surface *original) {
 		}
 
 		if (redrawToolbar) {
-			drawToolbar(original);
-			_engine->copyToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
-			                           original->h - _destSurface.h, _destSurface.w, _destSurface.h);
+			drawToolbar(&_bgStrip.rawSurface());
+			_engine->copyUIToolbar(_destSurface);
 		}
 
 		g_system->updateScreen();

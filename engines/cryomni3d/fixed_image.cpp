@@ -111,8 +111,7 @@ void ZonFixedImage::display() const {
 	_engine.setupPalette(_imageDecoder->getPalette().data(), 0,
 	                     _imageDecoder->getPalette().size());
 
-	_engine.copyToScreen(_imageSurface->getPixels(), _imageSurface->pitch, 0, 0,
-	                           _imageSurface->w, _imageSurface->h);
+	_engine.copyUIScreen(*_imageSurface);
 	g_system->updateScreen();
 }
 
@@ -213,7 +212,7 @@ void ZonFixedImage::manage() {
 
 	// Feed the key for the caller
 	_key = _engine.getNextKey();
-	Common::Point mousePos = _engine.getMousePos();
+	Common::Point mousePos = _engine.getUIMousePos();
 
 	if (_key == Common::KEYCODE_ESCAPE) {
 		_exit = true;

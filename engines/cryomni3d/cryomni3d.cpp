@@ -49,7 +49,7 @@ namespace CryOmni3D {
 CryOmni3DEngine::CryOmni3DEngine(OSystem *syst,
 								 const CryOmni3DGameDescription *gamedesc) : Engine(syst), _gameDescription(gamedesc),
 	_canLoadSave(false), _fontManager(), _sprites(), _dragStatus(kDragStatus_NoDrag), _lastMouseButton(0),
-	_autoRepeatNextEvent(uint(-1)), _hnmHasClip(false) {
+	_autoRepeatNextEvent(uint(-1)), _hnmHasClip(false), _uiScale(1), _uiOffsetX(0), _uiOffsetY(0) {
 	if (!_mixer->isReady()) {
 		error("Sound initialization failed");
 	}
@@ -105,15 +105,19 @@ DATSeekableStream *CryOmni3DEngine::getStaticData(uint32 gameId, uint16 version)
 
 void CryOmni3DEngine::playHNM(const Common::Path &filepath, Audio::Mixer::SoundType soundType,
 							  HNMCallback beforeDraw, HNMCallback afterDraw) {
-	Graphics::PixelFormat screenFormat = g_system->getScreenFormat();
-	byte *currentPalette = nullptr;
-	if (screenFormat.bytesPerPixel == 1) {
-		currentPalette = new byte[256 * 3];
-		g_system->getPaletteManager()->grabPalette(currentPalette, 0, 256);
-	}
+	// Les vidéos du jeu sont des HNM4/HNM5, que le décodeur ne sait produire
+	// qu'en 8 bits : il refuse un format d'écran >= 2 octets. La conversion en
+	// vraies couleurs se fait plus bas, dans copyToScreen, comme pour le reste.
+	const Graphics::PixelFormat decoderFormat = Graphics::PixelFormat::createFormatCLUT8();
+
+	// Le décodeur prend possession de la palette initiale : on lui donne une
+	// copie de la palette réellement à l'écran (le miroir, car l'écran en vraies
+	// couleurs ne permet pas de la relire).
+	byte *currentPalette = new byte[256 * 3];
+	memcpy(currentPalette, _screenPalette, 256 * 3);
 
 	// Pass the ownership of currentPalette to HNMDecoder
-	Video::VideoDecoder *videoDecoder = new Video::HNMDecoder(screenFormat, false, currentPalette);
+	Video::VideoDecoder *videoDecoder = new Video::HNMDecoder(decoderFormat, false, currentPalette);
 	videoDecoder->setSoundType(soundType);
 
 	if (!videoDecoder->loadFile(filepath)) {
@@ -126,6 +130,9 @@ void CryOmni3DEngine::playHNM(const Common::Path &filepath, Audio::Mixer::SoundT
 
 	uint16 width = videoDecoder->getWidth();
 	uint16 height = videoDecoder->getHeight();
+
+	// La vidéo est un plein écran 4:3 : les bandes autour sont noires.
+	clearScreen();
 
 	bool skipVideo = false;
 	uint frameNum = 0;
@@ -146,10 +153,9 @@ void CryOmni3DEngine::playHNM(const Common::Path &filepath, Audio::Mixer::SoundT
 				if (_hnmHasClip) {
 					Common::Rect rct(width, height);
 					rct.clip(_hnmClipping);
-					copyToScreen(frame->getPixels(), frame->pitch, rct.left, rct.top, rct.width(),
-					                           rct.height());
+					copyUIAt(*frame, rct);
 				} else {
-					copyToScreen(frame->getPixels(), frame->pitch, 0, 0, width, height);
+					copyUIAt(*frame, Common::Rect(0, 0, width, height));
 				}
 
 				if (afterDraw) {
@@ -231,7 +237,7 @@ bool CryOmni3DEngine::displayHLZ(const Common::Path &filepath, uint32 timeout) {
 	}
 
 	const Graphics::Surface *frame = imageDecoder->getSurface();
-	copyToScreen(frame->getPixels(), frame->pitch, 0, 0, frame->w, frame->h);
+	copyUIScreen(*frame);
 	g_system->updateScreen();
 
 	uint32 end;
@@ -451,6 +457,130 @@ void CryOmni3DEngine::copyToScreen(const void *buf, int pitch, int x, int y, int
 	conv.free();
 }
 
+void CryOmni3DEngine::initUILayout() {
+	const int screenW = g_system->getWidth();
+	const int screenH = g_system->getHeight();
+
+	// Facteur entier : x2 en 1920x1088 comme en 2560x1088. Si l'écran est plus
+	// petit que 640x480 (repli indexé du backend), on garde x1.
+	int scale = MIN((int)screenW / kUIWidth, (int)screenH / kUIHeight);
+	if (scale < 1) {
+		scale = 1;
+	}
+
+	_uiScale = scale;
+	_uiOffsetX = (screenW - kUIWidth * scale) / 2;
+	_uiOffsetY = (screenH - kUIHeight * scale) / 2;
+
+	debug("CryOmni3D: interface %dx%d -> echelle %d, decalage %d,%d sur %dx%d",
+	      kUIWidth, kUIHeight, scale, _uiOffsetX, _uiOffsetY, screenW, screenH);
+}
+
+int CryOmni3DEngine::getUIToolbarTop() const {
+	// La barre est collée au bas de l'écran ; on exprime son haut dans le repère
+	// 640x480 pour que les zones de clic restent inchangées.
+	const int topScreen = g_system->getHeight() - kUIToolbarHeight * _uiScale;
+	return (topScreen - _uiOffsetY) / _uiScale;
+}
+
+Common::Point CryOmni3DEngine::mapScreenToUI(const Common::Point &p) const {
+	return Common::Point((p.x - _uiOffsetX) / _uiScale, (p.y - _uiOffsetY) / _uiScale);
+}
+
+Common::Point CryOmni3DEngine::getUIMousePos() {
+	return mapScreenToUI(getMousePos());
+}
+
+void CryOmni3DEngine::setUIMousePos(const Common::Point &p) {
+	setMousePos(Common::Point(_uiOffsetX + p.x * _uiScale, _uiOffsetY + p.y * _uiScale));
+}
+
+void CryOmni3DEngine::scaleUIRegion(const Graphics::Surface &src, const Common::Rect &srcRect) {
+	const int dw = srcRect.width() * _uiScale;
+	const int dh = srcRect.height() * _uiScale;
+
+	if (_uiScaled.w != dw || _uiScaled.h != dh || _uiScaled.format.bytesPerPixel != 1) {
+		_uiScaled.create(dw, dh, Graphics::PixelFormat::createFormatCLUT8());
+	}
+
+	// Plus proche voisin : l'art 640x480 est agrandi d'un facteur entier, chaque
+	// pixel source devient un carré net de _uiScale x _uiScale pixels.
+	for (int y = 0; y < dh; y++) {
+		const byte *srow = (const byte *)src.getBasePtr(srcRect.left, srcRect.top + y / _uiScale);
+		byte *drow = (byte *)_uiScaled.getBasePtr(0, y);
+		for (int x = 0; x < dw; x++) {
+			drow[x] = srow[x / _uiScale];
+		}
+	}
+}
+
+void CryOmni3DEngine::copyUIAt(const Graphics::Surface &src, const Common::Rect &srcRect) {
+	scaleUIRegion(src, srcRect);
+	copyToScreen(_uiScaled.getPixels(), _uiScaled.pitch,
+	             _uiOffsetX + srcRect.left * _uiScale,
+	             _uiOffsetY + srcRect.top * _uiScale,
+	             _uiScaled.w, _uiScaled.h);
+}
+
+void CryOmni3DEngine::copyUIAtScreen(const Graphics::Surface &src, const Common::Rect &srcRect,
+                                     int screenX, int screenY) {
+	scaleUIRegion(src, srcRect);
+	copyToScreen(_uiScaled.getPixels(), _uiScaled.pitch, screenX, screenY,
+	             _uiScaled.w, _uiScaled.h);
+}
+
+void CryOmni3DEngine::copyUIScreen(const Graphics::Surface &src) {
+	clearScreen();
+	copyUIAt(src, Common::Rect(0, 0, src.w, src.h));
+}
+
+void CryOmni3DEngine::copyUIToolbar(const Graphics::Surface &src) {
+	copyUIAtScreen(src, Common::Rect(0, 0, src.w, src.h),
+	               _uiOffsetX, g_system->getHeight() - src.h * _uiScale);
+}
+
+void CryOmni3DEngine::captureToolbarBackground(const Graphics::Surface &displayed,
+                                               Graphics::ManagedSurface &strip) {
+	if (strip.w != kUIWidth || strip.h != kUIToolbarHeight || strip.format.bytesPerPixel != 1) {
+		strip.create(kUIWidth, kUIToolbarHeight, Graphics::PixelFormat::createFormatCLUT8());
+	}
+	strip.fillRect(Common::Rect(0, 0, kUIWidth, kUIToolbarHeight), 0);
+
+	const int topScreen = g_system->getHeight() - kUIToolbarHeight * _uiScale;
+
+	if (displayed.w <= kUIWidth && displayed.h <= kUIHeight) {
+		// Image d'interface 640x480 affichée centrée : la barre d'outils déborde
+		// sous l'image, sur la bande noire. On copie la fin de l'image puis on
+		// laisse le noir.
+		const int uiTop = (topScreen - _uiOffsetY) / _uiScale;
+		const int first = MAX(0, -uiTop);
+		const int last = MIN(kUIToolbarHeight, displayed.h - uiTop);
+		if (last > first) {
+			Common::Rect srcRect(0, uiTop + first, MIN(kUIWidth, (int)displayed.w), uiTop + last);
+			strip.copyRectToSurface(displayed, 0, first, srcRect);
+		}
+	} else {
+		// Panorama : il occupe toute la surface de rendu, donc le bas de cette
+		// surface EST ce qui est affiché derrière la barre.
+		for (int y = 0; y < kUIToolbarHeight; y++) {
+			const byte *srow = (const byte *)displayed.getBasePtr(_uiOffsetX, topScreen + y * _uiScale);
+			byte *drow = (byte *)strip.getBasePtr(0, y);
+			for (int x = 0; x < kUIWidth; x++) {
+				drow[x] = srow[x * _uiScale];
+			}
+		}
+	}
+}
+
+void CryOmni3DEngine::clearScreen() {
+	const Graphics::PixelFormat screenFormat = g_system->getScreenFormat();
+	if (screenFormat.bytesPerPixel == 1) {
+		g_system->fillScreen(0);
+	} else {
+		g_system->fillScreen(screenFormat.RGBToColor(0, 0, 0));
+	}
+}
+
 void CryOmni3DEngine::fadeOutPalette() {
 	byte palOut[256 * 3];
 	uint16 palWork[256 * 3];
@@ -539,6 +669,7 @@ Common::Error CryOmni3DEngine_HNMPlayer::run() {
 	CryOmni3DEngine::run();
 
 	initGraphics(640, 480);
+	initUILayout();
 
 	syncSoundSettings();
 

@@ -33,6 +33,7 @@
 #include "engines/engine.h"
 
 #include "graphics/cursorman.h"
+#include "graphics/managed_surface.h"
 
 #include "cryomni3d/font_manager.h"
 #include "cryomni3d/objects.h"
@@ -117,6 +118,47 @@ public:
 	 * palette effectivement appliquée.
 	 */
 	void copyToScreen(const void *buf, int pitch, int x, int y, int w, int h);
+
+	// --- Interface 640x480 mise à l'échelle de la surface de rendu ---
+	//
+	// Tous les écrans d'interface du jeu (menus, images fixes, documentation,
+	// dialogues, barre d'outils) sont dessinés en 640x480. Depuis que la surface
+	// de rendu fait 1920x1088 (ou 2560x1088), ils doivent être agrandis et
+	// positionnés : c'est ce que fait cette couche. Les surfaces restent en
+	// 640x480, seule la présentation change.
+	//
+	// Échelle ENTIÈRE (x2 en 1920x1088 comme en 2560x1088), centrée : l'art est
+	// du 4:3 et ne doit pas être étiré en 16:9 (textes et visages déformés), et
+	// un facteur entier garde les pixels carrés et nets (plus proche voisin).
+	// Les bandes laissées libres sont noires.
+	static const int kUIWidth = 640;
+	static const int kUIHeight = 480;
+	static const int kUIToolbarHeight = 60;
+
+	/** Recalcule échelle et centrage. À appeler juste après initGraphics(). */
+	void initUILayout();
+	int getUIScale() const { return _uiScale; }
+	int getUIOffsetX() const { return _uiOffsetX; }
+	int getUIOffsetY() const { return _uiOffsetY; }
+	/** Ordonnée, dans le repère 640x480, du haut de la barre d'outils affichée. */
+	int getUIToolbarTop() const;
+	Common::Point mapScreenToUI(const Common::Point &p) const;
+	/** Position de la souris ramenée dans le repère 640x480 de l'interface. */
+	Common::Point getUIMousePos();
+	void setUIMousePos(const Common::Point &p);
+
+	/** Affiche une région d'une surface d'interface à sa place logique (mise à l'échelle). */
+	void copyUIAt(const Graphics::Surface &src, const Common::Rect &srcRect);
+	/** Affiche une surface d'interface plein écran : efface l'écran puis la centre. */
+	void copyUIScreen(const Graphics::Surface &src);
+	/** Affiche une région d'interface à une position écran imposée (barre, compte à rebours). */
+	void copyUIAtScreen(const Graphics::Surface &src, const Common::Rect &srcRect, int screenX, int screenY);
+	/** Affiche la barre d'outils, collée au bas de l'écran et centrée horizontalement. */
+	void copyUIToolbar(const Graphics::Surface &src);
+	/** Capture, en 640x60, ce qui est réellement affiché derrière la barre d'outils. */
+	void captureToolbarBackground(const Graphics::Surface &displayed, Graphics::ManagedSurface &strip);
+	void clearScreen();
+
 	/* We use CursorMan because it avoids problems with cursors in GMM */
 	void setCursor(const Graphics::Cursor &cursor) const;
 	void setCursor(uint cursorId) const;
@@ -188,6 +230,14 @@ private:
 
 	Common::Rect _hnmClipping;
 	bool _hnmHasClip;
+
+	// Mise à l'échelle de l'interface (cf. initUILayout).
+	int _uiScale;
+	int _uiOffsetX;
+	int _uiOffsetY;
+	Graphics::ManagedSurface _uiScaled;
+
+	void scaleUIRegion(const Graphics::Surface &src, const Common::Rect &srcRect);
 };
 
 class CryOmni3DEngine_HNMPlayer : public CryOmni3DEngine {

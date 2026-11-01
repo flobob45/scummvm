@@ -245,8 +245,7 @@ uint CryOmni3DEngine_Versailles::displayOptions() {
 			optionsSurface.transBlitFrom(_sprites.getSurface(102), Common::Point(553, soundVolumeY),
 			                             _sprites.getKeyColor(102));
 
-			copyToScreen(optionsSurface.getPixels(), optionsSurface.pitch, 0, 0, optionsSurface.w,
-			                           optionsSurface.h);
+			copyUIScreen(optionsSurface);
 			drawState = 0;
 		}
 		g_system->updateScreen();
@@ -254,7 +253,7 @@ uint CryOmni3DEngine_Versailles::displayOptions() {
 
 		if (pollEvents() || forceEvents) { // always call pollEvents
 			forceEvents = false;
-			Common::Point mouse = getMousePos();
+			Common::Point mouse = getUIMousePos();
 			uint boxId = 0;
 			Common::Array<int>::iterator it;
 			for (it = menuEntries.begin(); it != menuEntries.end(); it++) {
@@ -281,8 +280,8 @@ uint CryOmni3DEngine_Versailles::displayOptions() {
 						drawState = 1;
 					}
 					if (getCurrentMouseButton() == 1) {
-						if (soundVolumeY != getMousePos().y - volumeCursorMiddleY) {
-							soundVolumeY = CLIP(getMousePos().y - volumeCursorMiddleY, 101u, 384u);
+						if (soundVolumeY != getUIMousePos().y - volumeCursorMiddleY) {
+							soundVolumeY = CLIP(getUIMousePos().y - volumeCursorMiddleY, 101u, 384u);
 							drawState = 1;
 							volume = CLIP(((384 - soundVolumeY) << 8) / 283, 0u, 256u);
 							// Global setting
@@ -566,13 +565,13 @@ uint CryOmni3DEngine_Versailles::displayYesNoBox(Graphics::ManagedSurface &surfa
 			}
 			redraw = false;
 
-			copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+			copyUIScreen(surface);
 		}
 		g_system->updateScreen();
 		g_system->delayMillis(10);
 
 		if (pollEvents()) {
-			Common::Point mouse = getMousePos();
+			Common::Point mouse = getUIMousePos();
 			uint hit_result = uint(-1);
 			if (boxes.hitTest(1, mouse)) {
 				hit_result = 1;
@@ -621,7 +620,7 @@ uint CryOmni3DEngine_Versailles::displayFilePicker(const Graphics::Surface *bgFr
 
 	// Draw an empty screen before we list saves
 	showMouse(false);
-	copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+	copyUIScreen(surface);
 	g_system->updateScreen();
 
 	Common::Array<Common::String> savesList;
@@ -711,7 +710,7 @@ uint CryOmni3DEngine_Versailles::displayFilePicker(const Graphics::Surface *bgFr
 				}
 			}
 			redraw = false;
-			copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+			copyUIScreen(surface);
 		}
 
 		g_system->updateScreen();
@@ -725,7 +724,7 @@ uint CryOmni3DEngine_Versailles::displayFilePicker(const Graphics::Surface *bgFr
 			bool boxFound = false;
 			// Don't handle scroll arrows hovering
 			for (uint box = 0; box < 8; box++) {
-				if (boxes.hitTest(box, getMousePos())) {
+				if (boxes.hitTest(box, getUIMousePos())) {
 					boxFound = true;
 					if (boxHovered != box) {
 						boxHovered = box;
@@ -814,10 +813,10 @@ uint CryOmni3DEngine_Versailles::displayFilePicker(const Graphics::Surface *bgFr
 			bool autoRepeatTrigger = false;
 			uint oldFileListOffset = fileListOffset;
 			if (mousePressed) {
-				if (boxes.hitTest(8, getMousePos()) && fileListOffset > 0) {
+				if (boxes.hitTest(8, getUIMousePos()) && fileListOffset > 0) {
 					fileListOffset--;
 					autoRepeatTrigger = true;
-				} else if (boxes.hitTest(9, getMousePos()) && fileListOffset < 99 - 6) {
+				} else if (boxes.hitTest(9, getUIMousePos()) && fileListOffset < 99 - 6) {
 					fileListOffset++;
 					autoRepeatTrigger = true;
 				}
@@ -892,6 +891,27 @@ const MsgBoxParameters CryOmni3DEngine_Versailles::kFixedimageMsgBoxParameters =
 void CryOmni3DEngine_Versailles::displayMessageBox(const MsgBoxParameters &params,
 		const Graphics::Surface *surface, const Common::String &msg, const Common::Point &position,
 		const Common::Functor0<void> &callback) {
+	// La boîte est dessinée dans le repère 640x480. Selon la provenance :
+	//  - une image fixe (640x480), qui occupe tout le canevas d'interface ;
+	//  - le panorama (surface de rendu), dont on ne travaille que sur la vue
+	//    640x480 centrée, pour laisser les côtés intacts.
+	const bool uiSized = (surface->w <= kUIWidth && surface->h <= kUIHeight);
+	const Graphics::Surface *originalSurface = surface;
+	Graphics::ManagedSurface uiSnapshot;
+
+	if (!uiSized) {
+		uiSnapshot.create(kUIWidth, kUIHeight, Graphics::PixelFormat::createFormatCLUT8());
+		for (int y = 0; y < kUIHeight; y++) {
+			const byte *srow = (const byte *)surface->getBasePtr(getUIOffsetX(),
+			                                                     getUIOffsetY() + y * getUIScale());
+			byte *drow = (byte *)uiSnapshot.getBasePtr(0, y);
+			for (int x = 0; x < kUIWidth; x++) {
+				drow[x] = srow[x * getUIScale()];
+			}
+		}
+		surface = &uiSnapshot.rawSurface();
+	}
+
 	Graphics::ManagedSurface dstSurface;
 	dstSurface.create(surface->w, surface->h, surface->format);
 	dstSurface.blitFrom(*surface);
@@ -960,10 +980,14 @@ void CryOmni3DEngine_Versailles::displayMessageBox(const MsgBoxParameters &param
 	_fontManager.setupBlock(rct);
 	_fontManager.displayBlockText(msg);
 
-	drawCountdown(&dstSurface);
-
-	copyToScreen(dstSurface.getPixels(), dstSurface.pitch, 0, 0,
-	                           dstSurface.w, dstSurface.h);
+	if (uiSized) {
+		copyUIScreen(dstSurface);
+	} else {
+		copyUIAt(dstSurface, Common::Rect(0, 0, dstSurface.w, dstSurface.h));
+	}
+	// Compte à rebours ancré au coin supérieur droit de l'ÉCRAN (il ne fait pas
+	// partie de l'image 640x480).
+	drawCountdown(nullptr);
 
 	waitMouseRelease();
 	uint disappearTime = g_system->getMillis() + msg.size() * params.timeoutChar * 10;
@@ -980,11 +1004,16 @@ void CryOmni3DEngine_Versailles::displayMessageBox(const MsgBoxParameters &param
 	}
 
 	// Restore image
-	copyToScreen(surface->getPixels(), surface->pitch, 0, 0, surface->w, surface->h);
+	if (uiSized) {
+		copyUIScreen(*originalSurface);
+	} else {
+		copyToScreen(originalSurface->getPixels(), originalSurface->pitch, 0, 0,
+		             originalSurface->w, originalSurface->h);
+	}
 }
 
 void CryOmni3DEngine_Versailles::displayMessageBoxWarp(const Common::String &message) {
-	Common::Point mousePos = getMousePos();
+	Common::Point mousePos = getUIMousePos();
 	mousePos += Common::Point(0, 32);
 	if (mousePos.x > 639) {
 		mousePos.x = 639;
@@ -1051,8 +1080,7 @@ void CryOmni3DEngine_Versailles::displayCredits() {
 			if (!strncmp(line + 3, "ECRAN", 5)) {
 				// ECRAN command
 				if (calculatedScreen) {
-					copyToScreen(creditsSurface.getPixels(), creditsSurface.pitch, 0, 0,
-					                           creditsSurface.w, creditsSurface.h);
+					copyUIScreen(creditsSurface);
 					if (skipScreen) {
 						// Just display palette
 						setPalette(palette, 0, 256);

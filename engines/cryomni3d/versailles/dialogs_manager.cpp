@@ -103,7 +103,9 @@ void Versailles_DialogsManager::playDialog(const Common::String &video, const Co
 	Common::Path videoPath(_engine->getFilePath(kFileTypeDialAnim, video));
 	Common::Path soundPath(_engine->getFilePath(kFileTypeDialSound, soundFName));
 
-	Video::HNMDecoder *videoDecoder = new Video::HNMDecoder(g_system->getScreenFormat(), true);
+	// HNM4/HNM5 : le décodeur ne produit que de l'indexé 8 bits (cf. playHNM).
+	Video::HNMDecoder *videoDecoder = new Video::HNMDecoder(
+	    Graphics::PixelFormat::createFormatCLUT8(), true);
 
 	if (!videoDecoder->loadFile(videoPath)) {
 		warning("Failed to open movie file %s/%s", video.c_str(), videoPath.toString(Common::Path::kNativeSeparator).c_str());
@@ -178,7 +180,7 @@ void Versailles_DialogsManager::playDialog(const Common::String &video, const Co
 		fontManager.displayBlockText(text);
 	}
 
-	_engine->copyToScreen(_lastImage.getPixels(), _lastImage.pitch, 0, 0, width, height);
+	_engine->copyUIScreen(_lastImage);
 	g_system->updateScreen();
 
 	const Common::Rect &drawRect = settings.drawRect;
@@ -226,9 +228,7 @@ void Versailles_DialogsManager::playDialog(const Common::String &video, const Co
 					}
 
 					// Only refresh the moving part of the animation
-					const Graphics::Surface subFrame = frame->getSubArea(drawRect);
-					_engine->copyToScreen(subFrame.getPixels(), subFrame.pitch, drawRect.left, drawRect.top,
-					                           subFrame.w, subFrame.h);
+					_engine->copyUIAt(*frame, drawRect);
 				}
 			}
 			g_system->updateScreen();
@@ -308,8 +308,7 @@ uint Versailles_DialogsManager::askPlayerQuestions(const Common::String &video,
 				fontManager.setupBlock(Common::Rect(10, tops[questionId], 608, bottoms[questionId]));
 				fontManager.displayBlockText(*it);
 			}
-			_engine->copyToScreen(_lastImage.getPixels(), _lastImage.pitch, 0, 0, _lastImage.w,
-			                           _lastImage.h);
+			_engine->copyUIScreen(_lastImage);
 		}
 		g_system->updateScreen();
 		g_system->delayMillis(10);
@@ -321,7 +320,7 @@ uint Versailles_DialogsManager::askPlayerQuestions(const Common::String &video,
 				selectedQuestion = uint(-1);
 				break;
 			}
-			Common::Point mousePos = _engine->getMousePos();
+			Common::Point mousePos = _engine->getUIMousePos();
 			if (_engine->getDragStatus() == kDragStatus_Finished && selectedQuestion != uint(-1)) {
 				finished = true;
 			} else if (mousePos.x >= 608 || mousePos.y < offsetY) {
@@ -354,7 +353,8 @@ uint Versailles_DialogsManager::askPlayerQuestions(const Common::String &video,
 void Versailles_DialogsManager::loadFrame(const Common::String &video) {
 	Common::Path videoPath(_engine->getFilePath(kFileTypeDialAnim, video));
 
-	Video::HNMDecoder videoDecoder(g_system->getScreenFormat());
+	// HNM4/HNM5 : le décodeur ne produit que de l'indexé 8 bits.
+	Video::HNMDecoder videoDecoder(Graphics::PixelFormat::createFormatCLUT8());
 
 	if (!videoDecoder.loadFile(videoPath)) {
 		warning("Failed to open movie file %s/%s", video.c_str(), videoPath.toString(Common::Path::kNativeSeparator).c_str());

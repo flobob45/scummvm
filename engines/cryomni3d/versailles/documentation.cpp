@@ -364,8 +364,7 @@ Common::String Versailles_Documentation::docAreaHandleSummary() {
 			docSurface.transBlitFrom(_sprites->getSurface(225), boxes.getBoxOrigin(7),
 			                         _sprites->getKeyColor(225));
 
-			_engine->copyToScreen(docSurface.getPixels(), docSurface.pitch, 0, 0, docSurface.w,
-			                           docSurface.h);
+			_engine->copyUIScreen(docSurface);
 
 			redraw = false;
 		}
@@ -375,7 +374,7 @@ Common::String Versailles_Documentation::docAreaHandleSummary() {
 		if (_engine->pollEvents()) {
 			if (!_engine->getCurrentMouseButton()) {
 				// Don't change highlighted icon when clicking
-				Common::Point mouse = _engine->getMousePos();
+				Common::Point mouse = _engine->getUIMousePos();
 				bool foundBox = false;
 				for (uint i = 0; i < ARRAYSIZE(categories); i++) {
 					if (boxes.hitTest(i, mouse)) {
@@ -479,15 +478,14 @@ Common::String Versailles_Documentation::docAreaHandleTimeline() {
 			docSurface.transBlitFrom(_sprites->getSurface(105), boxes.getBoxOrigin(leaveBoxId),
 			                         _sprites->getKeyColor(105));
 
-			_engine->copyToScreen(docSurface.getPixels(), docSurface.pitch, 0, 0,
-			                           docSurface.w, docSurface.h);
+			_engine->copyUIScreen(docSurface);
 			redraw = false;
 		}
 		g_system->updateScreen();
 		g_system->delayMillis(10);
 
 		if (_engine->pollEvents()) {
-			Common::Point mouse = _engine->getMousePos();
+			Common::Point mouse = _engine->getUIMousePos();
 			if (!_engine->getCurrentMouseButton()) {
 				// Don't change highlighted date when clicking
 				bool foundBox = false;
@@ -708,7 +706,7 @@ uint Versailles_Documentation::docAreaHandleRecord(Graphics::ManagedSurface &sur
 
 	while (action == uint(-1)) {
 		if (redraw) {
-			_engine->copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+			_engine->copyUIScreen(surface);
 			redraw = false;
 		}
 		g_system->updateScreen();
@@ -720,7 +718,7 @@ uint Versailles_Documentation::docAreaHandleRecord(Graphics::ManagedSurface &sur
 				// Fake the quit
 				action = 6;
 			}
-			Common::Point mouse = _engine->getMousePos();
+			Common::Point mouse = _engine->getUIMousePos();
 			if (_currentInTimeline) {
 				bool foundBox = false;
 				for (uint i = 10; i < 10 + ARRAYSIZE(kTimelineEntries); i++) {
@@ -1000,8 +998,7 @@ Common::String Versailles_Documentation::docAreaHandleGeneralMap() {
 			}
 			*/
 
-			_engine->copyToScreen(mapSurface.getPixels(), mapSurface.pitch, 0, 0, mapSurface.w,
-			                           mapSurface.h);
+			_engine->copyUIScreen(mapSurface);
 
 			redraw = false;
 		}
@@ -1009,7 +1006,7 @@ Common::String Versailles_Documentation::docAreaHandleGeneralMap() {
 		g_system->delayMillis(10);
 
 		if (_engine->pollEvents()) {
-			Common::Point mouse = _engine->getMousePos();
+			Common::Point mouse = _engine->getUIMousePos();
 			if (!_engine->getCurrentMouseButton()) {
 				// Don't change highlighted icon when clicking
 				bool foundBox = false;
@@ -1241,8 +1238,7 @@ Common::String Versailles_Documentation::docAreaHandleCastleMap() {
 			}
 			*/
 
-			_engine->copyToScreen(mapSurface.getPixels(), mapSurface.pitch, 0, 0,
-			                           mapSurface.w, mapSurface.h);
+			_engine->copyUIScreen(mapSurface);
 
 			redraw = false;
 		}
@@ -1250,7 +1246,7 @@ Common::String Versailles_Documentation::docAreaHandleCastleMap() {
 		g_system->delayMillis(10);
 
 		if (_engine->pollEvents()) {
-			Common::Point mouse = _engine->getMousePos();
+			Common::Point mouse = _engine->getUIMousePos();
 			if (!_engine->getCurrentMouseButton()) {
 				// Don't change highlighted icon when clicking
 				bool foundBox = false;
@@ -1354,7 +1350,7 @@ uint Versailles_Documentation::inGameHandleRecord(Graphics::ManagedSurface &surf
 
 	uint action = uint(-1);
 
-	_engine->copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+	_engine->copyUIScreen(surface);
 
 	while (action == uint(-1)) {
 		g_system->updateScreen();
@@ -1365,7 +1361,7 @@ uint Versailles_Documentation::inGameHandleRecord(Graphics::ManagedSurface &surf
 				// Fake the quit
 				action = 1;
 			}
-			Common::Point mouse = _engine->getMousePos();
+			Common::Point mouse = _engine->getUIMousePos();
 			if (_engine->getDragStatus() == kDragStatus_Pressed) {
 				if (boxes.hitTest(2, mouse) && _currentLinks.size()) {
 					Common::StringArray items;
@@ -1743,7 +1739,7 @@ uint Versailles_Documentation::handlePopupMenu(const Graphics::ManagedSurface
 					                         popupRect.top + kPopupMenuMargin + i * itemHeight + 3, items[firstShownItem + i]);
 				}
 			}
-			_engine->copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+			_engine->copyUIScreen(surface);
 			redraw = false;
 		}
 		g_system->updateScreen();
@@ -1754,7 +1750,7 @@ uint Versailles_Documentation::handlePopupMenu(const Graphics::ManagedSurface
 				// Fake the quit
 				break;
 			}
-			mouse = _engine->getMousePos();
+			mouse = _engine->getUIMousePos();
 
 			uint newHovered = uint(-1);
 			for (uint i = 0; i < shownItems; i++) {
@@ -1820,8 +1816,7 @@ uint Versailles_Documentation::handlePopupMenu(const Graphics::ManagedSurface
 	}
 
 	// Restore original surface
-	_engine->copyToScreen(originalSurface.getPixels(), originalSurface.pitch, 0, 0,
-	                           originalSurface.w, originalSurface.h);
+	_engine->copyUIScreen(originalSurface);
 	g_system->updateScreen();
 
 	_engine->waitMouseRelease();

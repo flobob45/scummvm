@@ -209,7 +209,9 @@ Common::Error CryOmni3DEngine_Versailles::run() {
 		formats.push_back(Graphics::PixelFormat::createFormatRGBA32());
 		initGraphics(renderSize.x, renderSize.y, formats);
 	}
-	setMousePos(Common::Point(320, 200));
+	// La mise à l'échelle de l'interface dépend de la taille réellement obtenue.
+	initUILayout();
+	setUIMousePos(Common::Point(320, 200));
 
 	syncSoundSettings();
 
@@ -1260,7 +1262,7 @@ void CryOmni3DEngine_Versailles::doPlaceChange() {
 				setupPalette(_currentWarpImage->getPalette().data(), 0,
 				             _currentWarpImage->getPalette().size(), !_fadedPalette);
 
-				setMousePos(Common::Point(320, 240)); // Center of screen
+				setUIMousePos(Common::Point(320, 240)); // Center of screen
 
 				_currentPlaceId = _nextPlaceId;
 				_nextPlaceId = uint(-1);
@@ -1446,20 +1448,24 @@ int CryOmni3DEngine_Versailles::handleWarp() {
 
 		pollEvents();
 		Common::Point mouse = getMousePos();
+		// Les seuils de bord sont pensés en 640x480 : la souris doit être lue
+		// dans ce repère, pas en pixels écran. mapMouseCoords, lui, travaille
+		// bien sur la surface de rendu et garde la position écran.
+		Common::Point mouseUI = mapScreenToUI(mouse);
 
-		if (mouse.y < 100) {
+		if (mouseUI.y < 100) {
 			movingCursor = 245;
-			yDelta = 100 - mouse.y;
-		} else if (mouse.y > 380) {
+			yDelta = 100 - mouseUI.y;
+		} else if (mouseUI.y > 380) {
 			movingCursor = 224;
-			yDelta = 380 - mouse.y;
+			yDelta = 380 - mouseUI.y;
 		}
-		if (mouse.x < 100) {
+		if (mouseUI.x < 100) {
 			movingCursor = 241;
-			xDelta = 100 - mouse.x;
-		} else if (mouse.x > 540) {
+			xDelta = 100 - mouseUI.x;
+		} else if (mouseUI.x > 540) {
 			movingCursor = 228;
-			xDelta = 540 - mouse.x;
+			xDelta = 540 - mouseUI.x;
 		}
 		if (_omni3dSpeed > 0) {
 			xDelta <<= _omni3dSpeed;
@@ -1801,11 +1807,10 @@ void CryOmni3DEngine_Versailles::displayObject(const Common::String &imgName,
 		(this->*hook)(dstSurface);
 	}
 
-	copyToScreen(dstSurface.getPixels(), dstSurface.pitch, 0, 0,
-	                           dstSurface.w, dstSurface.h);
+	copyUIScreen(dstSurface);
 	g_system->updateScreen();
 
-	setMousePos(Common::Point(320, 240)); // Center of screen
+	setUIMousePos(Common::Point(320, 240)); // Center of screen
 	setCursor(181);
 
 	bool cursorWasVisible = showMouse(true);
@@ -1824,7 +1829,7 @@ void CryOmni3DEngine_Versailles::displayObject(const Common::String &imgName,
 	clearKeys();
 
 	showMouse(cursorWasVisible);
-	setMousePos(Common::Point(320, 240)); // Center of screen
+	setUIMousePos(Common::Point(320, 240)); // Center of screen
 }
 
 void CryOmni3DEngine_Versailles::executeSeeAction(uint actionId) {
@@ -1850,7 +1855,7 @@ void CryOmni3DEngine_Versailles::executeSpeakAction(uint actionId) {
 	showMouse(false);
 	_forcePaletteUpdate = true;
 	if (doneSth) {
-		setMousePos(Common::Point(320, 240)); // Center of screen
+		setUIMousePos(Common::Point(320, 240)); // Center of screen
 	}
 }
 
@@ -1870,7 +1875,7 @@ void CryOmni3DEngine_Versailles::executeDocAction(uint actionId) {
 	_docManager.handleDocInGame(it->_value);
 
 	_forcePaletteUpdate = true;
-	setMousePos(Common::Point(320, 240)); // Center of screen
+	setUIMousePos(Common::Point(320, 240)); // Center of screen
 }
 
 void CryOmni3DEngine_Versailles::handleFixedImg(const FixedImgCallback &callback) {
@@ -1993,7 +1998,7 @@ void CryOmni3DEngine_Versailles::drawVideoSubtitles(uint frameNum) {
 	// Enable clipping to avoid refreshing text at every frame
 	setHNMClipping(Common::Rect(0, 0, 640, top));
 
-	copyToScreen(tmp.getPixels(), tmp.pitch, 0, top, tmp.w, tmp.h);
+	copyUIAt(tmp, Common::Rect(0, top, tmp.w, tmp.h));
 	g_system->updateScreen();
 }
 
