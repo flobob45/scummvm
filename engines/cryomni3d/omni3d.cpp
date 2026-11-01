@@ -174,7 +174,11 @@ void Omni3DManager::updateImageCoords() {
 		_beta = -0.9 * _vfov;
 	}
 
-	double tmp = (2048 * 65536) - 2048 * 65536 / (2. * M_PI) * _alpha;
+	// Le décalage du centre doit suivre l'échelle de la source, comme _helperValue :
+	// avec un panorama ×4 (8192) et un 2048 en dur, le nœud central — écrit en absolu
+	// plus bas — tombe un quart de tour à côté de ses voisins, et le carreau qui
+	// l'enjambe balaie des milliers de pixels source en 16 px d'écran.
+	double tmp = _srcWidth * 65536. - _helperValue * _alpha;
 
 	uint k = 0;
 	uint demiCols = (uint)(_cols / 2);
