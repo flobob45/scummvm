@@ -178,7 +178,7 @@ void Versailles_DialogsManager::playDialog(const Common::String &video, const Co
 		fontManager.displayBlockText(text);
 	}
 
-	g_system->copyRectToScreen(_lastImage.getPixels(), _lastImage.pitch, 0, 0, width, height);
+	_engine->copyToScreen(_lastImage.getPixels(), _lastImage.pitch, 0, 0, width, height);
 	g_system->updateScreen();
 
 	const Common::Rect &drawRect = settings.drawRect;
@@ -227,7 +227,7 @@ void Versailles_DialogsManager::playDialog(const Common::String &video, const Co
 
 					// Only refresh the moving part of the animation
 					const Graphics::Surface subFrame = frame->getSubArea(drawRect);
-					g_system->copyRectToScreen(subFrame.getPixels(), subFrame.pitch, drawRect.left, drawRect.top,
+					_engine->copyToScreen(subFrame.getPixels(), subFrame.pitch, drawRect.left, drawRect.top,
 					                           subFrame.w, subFrame.h);
 				}
 			}
@@ -308,7 +308,7 @@ uint Versailles_DialogsManager::askPlayerQuestions(const Common::String &video,
 				fontManager.setupBlock(Common::Rect(10, tops[questionId], 608, bottoms[questionId]));
 				fontManager.displayBlockText(*it);
 			}
-			g_system->copyRectToScreen(_lastImage.getPixels(), _lastImage.pitch, 0, 0, _lastImage.w,
+			_engine->copyToScreen(_lastImage.getPixels(), _lastImage.pitch, 0, 0, _lastImage.w,
 			                           _lastImage.h);
 		}
 		g_system->updateScreen();

@@ -364,7 +364,7 @@ Common::String Versailles_Documentation::docAreaHandleSummary() {
 			docSurface.transBlitFrom(_sprites->getSurface(225), boxes.getBoxOrigin(7),
 			                         _sprites->getKeyColor(225));
 
-			g_system->copyRectToScreen(docSurface.getPixels(), docSurface.pitch, 0, 0, docSurface.w,
+			_engine->copyToScreen(docSurface.getPixels(), docSurface.pitch, 0, 0, docSurface.w,
 			                           docSurface.h);
 
 			redraw = false;
@@ -479,7 +479,7 @@ Common::String Versailles_Documentation::docAreaHandleTimeline() {
 			docSurface.transBlitFrom(_sprites->getSurface(105), boxes.getBoxOrigin(leaveBoxId),
 			                         _sprites->getKeyColor(105));
 
-			g_system->copyRectToScreen(docSurface.getPixels(), docSurface.pitch, 0, 0,
+			_engine->copyToScreen(docSurface.getPixels(), docSurface.pitch, 0, 0,
 			                           docSurface.w, docSurface.h);
 			redraw = false;
 		}
@@ -708,7 +708,7 @@ uint Versailles_Documentation::docAreaHandleRecord(Graphics::ManagedSurface &sur
 
 	while (action == uint(-1)) {
 		if (redraw) {
-			g_system->copyRectToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+			_engine->copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
 			redraw = false;
 		}
 		g_system->updateScreen();
@@ -1000,7 +1000,7 @@ Common::String Versailles_Documentation::docAreaHandleGeneralMap() {
 			}
 			*/
 
-			g_system->copyRectToScreen(mapSurface.getPixels(), mapSurface.pitch, 0, 0, mapSurface.w,
+			_engine->copyToScreen(mapSurface.getPixels(), mapSurface.pitch, 0, 0, mapSurface.w,
 			                           mapSurface.h);
 
 			redraw = false;
@@ -1241,7 +1241,7 @@ Common::String Versailles_Documentation::docAreaHandleCastleMap() {
 			}
 			*/
 
-			g_system->copyRectToScreen(mapSurface.getPixels(), mapSurface.pitch, 0, 0,
+			_engine->copyToScreen(mapSurface.getPixels(), mapSurface.pitch, 0, 0,
 			                           mapSurface.w, mapSurface.h);
 
 			redraw = false;
@@ -1354,7 +1354,7 @@ uint Versailles_Documentation::inGameHandleRecord(Graphics::ManagedSurface &surf
 
 	uint action = uint(-1);
 
-	g_system->copyRectToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+	_engine->copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
 
 	while (action == uint(-1)) {
 		g_system->updateScreen();
@@ -1743,7 +1743,7 @@ uint Versailles_Documentation::handlePopupMenu(const Graphics::ManagedSurface
 					                         popupRect.top + kPopupMenuMargin + i * itemHeight + 3, items[firstShownItem + i]);
 				}
 			}
-			g_system->copyRectToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+			_engine->copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
 			redraw = false;
 		}
 		g_system->updateScreen();
@@ -1820,7 +1820,7 @@ uint Versailles_Documentation::handlePopupMenu(const Graphics::ManagedSurface
 	}
 
 	// Restore original surface
-	g_system->copyRectToScreen(originalSurface.getPixels(), originalSurface.pitch, 0, 0,
+	_engine->copyToScreen(originalSurface.getPixels(), originalSurface.pitch, 0, 0,
 	                           originalSurface.w, originalSurface.h);
 	g_system->updateScreen();
 

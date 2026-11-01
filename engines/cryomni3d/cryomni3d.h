@@ -107,6 +107,16 @@ public:
 	Image::ImageDecoder *loadHLZ(const Common::Path &filepath);
 
 	void fillSurface(byte color);
+
+	/**
+	 * Affiche un rectangle de pixels indexés.
+	 *
+	 * Le moteur reste entièrement en CLUT8 en interne (transparence par index,
+	 * fontes, fondus) : sur un écran indexé c'est un passe-plat, sur un écran
+	 * en vraies couleurs la conversion se fait ici, au dernier moment, avec la
+	 * palette effectivement appliquée.
+	 */
+	void copyToScreen(const void *buf, int pitch, int x, int y, int w, int h);
 	/* We use CursorMan because it avoids problems with cursors in GMM */
 	void setCursor(const Graphics::Cursor &cursor) const;
 	void setCursor(uint cursorId) const;
@@ -170,6 +180,11 @@ protected:
 private:
 	uint _lockPaletteStartRW;
 	uint _lockPaletteEndRW;
+
+	// Miroir de la palette RÉELLEMENT appliquée à l'écran. Indispensable quand
+	// l'écran est en vraies couleurs : g_system->getPaletteManager() n'y décrit
+	// plus rien, et c'est cette copie qui sert à convertir les rectangles.
+	byte _screenPalette[256 * 3];
 
 	Common::Rect _hnmClipping;
 	bool _hnmHasClip;

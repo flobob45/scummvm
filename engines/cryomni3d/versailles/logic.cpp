@@ -3083,7 +3083,7 @@ void CryOmni3DEngine_Versailles::handleBombTranslation(Graphics::ManagedSurface 
 	uint w = _fontManager.getStrWidth(translation);
 	_fontManager.displayStr((640 - w) / 2, 440, translation);
 
-	g_system->copyRectToScreen(surface.getPixels(), surface.pitch, 0, 0,
+	copyToScreen(surface.getPixels(), surface.pitch, 0, 0,
 	                           surface.w, surface.h);
 	g_system->updateScreen();
 
@@ -4843,7 +4843,7 @@ void CryOmni3DEngine_Versailles::doDrawCountdown(Graphics::ManagedSurface *surfa
 	if (surface) {
 		surface->blitFrom(_countdownSurface, Common::Point(600, 0));
 	} else {
-		g_system->copyRectToScreen(_countdownSurface.getPixels(), _countdownSurface.pitch, 600, 0,
+		copyToScreen(_countdownSurface.getPixels(), _countdownSurface.pitch, 600, 0,
 		                           _countdownSurface.w, _countdownSurface.h);
 	}
 }

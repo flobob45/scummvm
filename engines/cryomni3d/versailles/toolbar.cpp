@@ -421,7 +421,7 @@ bool Toolbar::displayToolbar(const Graphics::Surface *original) {
 	for (_position = 60; _position > 0; _position--) {
 		// Make the toolbar go up
 		drawToolbar(original);
-		g_system->copyRectToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
+		_engine->copyToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
 		                           original->h - _destSurface.h, _destSurface.w, _destSurface.h);
 		g_system->updateScreen();
 
@@ -450,7 +450,7 @@ bool Toolbar::displayToolbar(const Graphics::Surface *original) {
 	for (_position = 0; _position <= 60; _position++) {
 		// Make the toolbar go up
 		drawToolbar(original);
-		g_system->copyRectToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
+		_engine->copyToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
 		                           original->h - _destSurface.h, _destSurface.w, _destSurface.h);
 		g_system->updateScreen();
 
@@ -483,7 +483,7 @@ void Toolbar::handleToolbarEvents(const Graphics::Surface *original) {
 	// No need of original surface because the toolbar is fully displayed
 	drawToolbar(original);
 
-	g_system->copyRectToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
+	_engine->copyToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
 	                           original->h - _destSurface.h, _destSurface.w, _destSurface.h);
 	g_system->updateScreen();
 
@@ -586,7 +586,7 @@ void Toolbar::handleToolbarEvents(const Graphics::Surface *original) {
 
 		if (redrawToolbar) {
 			drawToolbar(original);
-			g_system->copyRectToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
+			_engine->copyToScreen(_destSurface.getPixels(), _destSurface.pitch, 0,
 			                           original->h - _destSurface.h, _destSurface.w, _destSurface.h);
 		}
 

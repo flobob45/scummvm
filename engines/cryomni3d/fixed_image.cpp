@@ -111,7 +111,7 @@ void ZonFixedImage::display() const {
 	_engine.setupPalette(_imageDecoder->getPalette().data(), 0,
 	                     _imageDecoder->getPalette().size());
 
-	g_system->copyRectToScreen(_imageSurface->getPixels(), _imageSurface->pitch, 0, 0,
+	_engine.copyToScreen(_imageSurface->getPixels(), _imageSurface->pitch, 0, 0,
 	                           _imageSurface->w, _imageSurface->h);
 	g_system->updateScreen();
 }

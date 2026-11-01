@@ -245,7 +245,7 @@ uint CryOmni3DEngine_Versailles::displayOptions() {
 			optionsSurface.transBlitFrom(_sprites.getSurface(102), Common::Point(553, soundVolumeY),
 			                             _sprites.getKeyColor(102));
 
-			g_system->copyRectToScreen(optionsSurface.getPixels(), optionsSurface.pitch, 0, 0, optionsSurface.w,
+			copyToScreen(optionsSurface.getPixels(), optionsSurface.pitch, 0, 0, optionsSurface.w,
 			                           optionsSurface.h);
 			drawState = 0;
 		}
@@ -566,7 +566,7 @@ uint CryOmni3DEngine_Versailles::displayYesNoBox(Graphics::ManagedSurface &surfa
 			}
 			redraw = false;
 
-			g_system->copyRectToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+			copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
 		}
 		g_system->updateScreen();
 		g_system->delayMillis(10);
@@ -621,7 +621,7 @@ uint CryOmni3DEngine_Versailles::displayFilePicker(const Graphics::Surface *bgFr
 
 	// Draw an empty screen before we list saves
 	showMouse(false);
-	g_system->copyRectToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+	copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
 	g_system->updateScreen();
 
 	Common::Array<Common::String> savesList;
@@ -711,7 +711,7 @@ uint CryOmni3DEngine_Versailles::displayFilePicker(const Graphics::Surface *bgFr
 				}
 			}
 			redraw = false;
-			g_system->copyRectToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
+			copyToScreen(surface.getPixels(), surface.pitch, 0, 0, surface.w, surface.h);
 		}
 
 		g_system->updateScreen();
@@ -962,7 +962,7 @@ void CryOmni3DEngine_Versailles::displayMessageBox(const MsgBoxParameters &param
 
 	drawCountdown(&dstSurface);
 
-	g_system->copyRectToScreen(dstSurface.getPixels(), dstSurface.pitch, 0, 0,
+	copyToScreen(dstSurface.getPixels(), dstSurface.pitch, 0, 0,
 	                           dstSurface.w, dstSurface.h);
 
 	waitMouseRelease();
@@ -980,7 +980,7 @@ void CryOmni3DEngine_Versailles::displayMessageBox(const MsgBoxParameters &param
 	}
 
 	// Restore image
-	g_system->copyRectToScreen(surface->getPixels(), surface->pitch, 0, 0, surface->w, surface->h);
+	copyToScreen(surface->getPixels(), surface->pitch, 0, 0, surface->w, surface->h);
 }
 
 void CryOmni3DEngine_Versailles::displayMessageBoxWarp(const Common::String &message) {
@@ -1051,7 +1051,7 @@ void CryOmni3DEngine_Versailles::displayCredits() {
 			if (!strncmp(line + 3, "ECRAN", 5)) {
 				// ECRAN command
 				if (calculatedScreen) {
-					g_system->copyRectToScreen(creditsSurface.getPixels(), creditsSurface.pitch, 0, 0,
+					copyToScreen(creditsSurface.getPixels(), creditsSurface.pitch, 0, 0,
 					                           creditsSurface.w, creditsSurface.h);
 					if (skipScreen) {
 						// Just display palette

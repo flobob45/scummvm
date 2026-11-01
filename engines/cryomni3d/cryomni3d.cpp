@@ -57,6 +57,9 @@ CryOmni3DEngine::CryOmni3DEngine(OSystem *syst,
 	// Setup mixer
 	syncSoundSettings();
 
+	// Palette noire au départ : rien n'a encore été appliqué à l'écran.
+	memset(_screenPalette, 0, sizeof(_screenPalette));
+
 	unlockPalette();
 }
 
@@ -143,10 +146,10 @@ void CryOmni3DEngine::playHNM(const Common::Path &filepath, Audio::Mixer::SoundT
 				if (_hnmHasClip) {
 					Common::Rect rct(width, height);
 					rct.clip(_hnmClipping);
-					g_system->copyRectToScreen(frame->getPixels(), frame->pitch, rct.left, rct.top, rct.width(),
+					copyToScreen(frame->getPixels(), frame->pitch, rct.left, rct.top, rct.width(),
 					                           rct.height());
 				} else {
-					g_system->copyRectToScreen(frame->getPixels(), frame->pitch, 0, 0, width, height);
+					copyToScreen(frame->getPixels(), frame->pitch, 0, 0, width, height);
 				}
 
 				if (afterDraw) {
@@ -228,7 +231,7 @@ bool CryOmni3DEngine::displayHLZ(const Common::Path &filepath, uint32 timeout) {
 	}
 
 	const Graphics::Surface *frame = imageDecoder->getSurface();
-	g_system->copyRectToScreen(frame->getPixels(), frame->pitch, 0, 0, frame->w, frame->h);
+	copyToScreen(frame->getPixels(), frame->pitch, 0, 0, frame->w, frame->h);
 	g_system->updateScreen();
 
 	uint32 end;
@@ -411,8 +414,41 @@ void CryOmni3DEngine::setPalette(const byte *colors, uint start, uint num) {
 		num = num - (end - _lockPaletteEndRW);
 		end = _lockPaletteEndRW;
 	}
-	g_system->getPaletteManager()->setPalette(colors, start, num);
+	// Miroir de ce qui est réellement à l'écran : sur un écran en vraies
+	// couleurs, getPaletteManager() ne décrit plus rien et c'est cette copie
+	// qui sert à convertir les rectangles dans copyToScreen().
+	memcpy(_screenPalette + 3 * start, colors, 3 * num);
+
+	if (g_system->getScreenFormat().bytesPerPixel == 1) {
+		g_system->getPaletteManager()->setPalette(colors, start, num);
+	}
 	// Don't update screen there: palette will be updated with next updateScreen call
+}
+
+void CryOmni3DEngine::copyToScreen(const void *buf, int pitch, int x, int y, int w, int h) {
+	const Graphics::PixelFormat screenFormat = g_system->getScreenFormat();
+	if (screenFormat.bytesPerPixel == 1) {
+		g_system->copyRectToScreen(buf, pitch, x, y, w, h);
+		return;
+	}
+
+	Graphics::Surface conv;
+	conv.create(w, h, screenFormat);
+	for (int row = 0; row < h; row++) {
+		const byte *src = (const byte *)buf + row * pitch;
+		byte *dst = (byte *)conv.getBasePtr(0, row);
+		for (int col = 0; col < w; col++) {
+			const byte *c = &_screenPalette[src[col] * 3];
+			const uint32 color = screenFormat.RGBToColor(c[0], c[1], c[2]);
+			if (screenFormat.bytesPerPixel == 2) {
+				((uint16 *)dst)[col] = (uint16)color;
+			} else {
+				((uint32 *)dst)[col] = color;
+			}
+		}
+	}
+	g_system->copyRectToScreen(conv.getPixels(), conv.pitch, x, y, w, h);
+	conv.free();
 }
 
 void CryOmni3DEngine::fadeOutPalette() {
@@ -420,7 +456,13 @@ void CryOmni3DEngine::fadeOutPalette() {
 	uint16 palWork[256 * 3];
 	uint16 delta[256 * 3];
 
-	g_system->getPaletteManager()->grabPalette(palOut, 0, 256);
+	// Sur un écran en vraies couleurs, getPaletteManager() n'a plus de palette
+	// (le backend refuse même de la lire) : on repart de notre miroir.
+	if (g_system->getScreenFormat().bytesPerPixel == 1) {
+		g_system->getPaletteManager()->grabPalette(palOut, 0, 256);
+	} else {
+		memcpy(palOut, _screenPalette, sizeof(palOut));
+	}
 	for (uint i = 0; i < 256 * 3; i++) {
 		palWork[i] = palOut[i] << 8;
 		delta[i] = palWork[i] / 25;
@@ -479,7 +521,12 @@ void CryOmni3DEngine::fadeInPalette(const byte *palette) {
 void CryOmni3DEngine::setBlackPalette() {
 	byte pal[256 * 3];
 	memset(pal, 0, 256 * 3);
-	g_system->getPaletteManager()->setPalette(pal, 0, 256);
+	// Comme l'original, on noircit tout sans tenir compte des locks — mais on
+	// tient le miroir à jour et on ne touche au gestionnaire que s'il en a un.
+	memcpy(_screenPalette, pal, sizeof(pal));
+	if (g_system->getScreenFormat().bytesPerPixel == 1) {
+		g_system->getPaletteManager()->setPalette(pal, 0, 256);
+	}
 	g_system->updateScreen();
 }
 

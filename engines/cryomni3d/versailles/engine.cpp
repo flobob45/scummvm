@@ -163,7 +163,18 @@ Common::Error CryOmni3DEngine_Versailles::run() {
 
 	_countdownSurface.create(40, 15, Graphics::PixelFormat::createFormatCLUT8());
 
-	initGraphics(Omni3DManager::kRenderWidth, Omni3DManager::kDefaultHeight);
+	// Écran en vraies couleurs : le moteur reste indexé en interne et convertit
+	// au dernier moment (cf. copyToScreen). Le format est choisi parmi ceux que
+	// le backend accepte ; s'il n'en accepte aucun, initGraphics retombe sur
+	// l'écran indexé et le moteur fonctionne exactement comme avant.
+	{
+		Common::List<Graphics::PixelFormat> formats;
+		// Cette version de ScummVM n'a pas de fabrique pour le RGB565 : c'est
+		// le format documenté dans graphics/pixelformat.h (2 octets, 5/6/5).
+		formats.push_back(Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0));
+		formats.push_back(Graphics::PixelFormat::createFormatRGBA32());
+		initGraphics(Omni3DManager::kRenderWidth, Omni3DManager::kDefaultHeight, formats);
+	}
 	setMousePos(Common::Point(320, 200));
 
 	syncSoundSettings();
@@ -1465,7 +1476,7 @@ int CryOmni3DEngine_Versailles::handleWarp() {
 			_omni3dMan.updateCoords(xDelta, -yDelta, useOldSpeed);
 
 			const Graphics::Surface *result = _omni3dMan.getSurface();
-			g_system->copyRectToScreen(result->getPixels(), result->pitch, 0, 0, result->w, result->h);
+			copyToScreen(result->getPixels(), result->pitch, 0, 0, result->w, result->h);
 			if (!exit) {
 				drawCountdown();
 				g_system->updateScreen();
@@ -1478,7 +1489,7 @@ int CryOmni3DEngine_Versailles::handleWarp() {
 			firstDraw = false;
 		} else if (moving) {
 			const Graphics::Surface *result = _omni3dMan.getSurface();
-			g_system->copyRectToScreen(result->getPixels(), result->pitch, 0, 0, result->w, result->h);
+			copyToScreen(result->getPixels(), result->pitch, 0, 0, result->w, result->h);
 			if (!exit) {
 				drawCountdown();
 				g_system->updateScreen();
@@ -1509,7 +1520,7 @@ bool CryOmni3DEngine_Versailles::handleWarpMouse(uint *actionId,
 		const Graphics::Surface *original = _omni3dMan.getSurface();
 
 		// Display surface with countdown before showing toolbar just to be sure
-		g_system->copyRectToScreen(original->getPixels(), original->pitch, 0, 0, original->w, original->h);
+		copyToScreen(original->getPixels(), original->pitch, 0, 0, original->w, original->h);
 		drawCountdown();
 
 		// Fade in palette to avoid displaying toolbar on a black screen
@@ -1646,7 +1657,7 @@ void CryOmni3DEngine_Versailles::animateWarpTransition(const Transition *transit
 		_omni3dMan.updateCoords(deltaAlphaI, -deltaBetaI, false);
 
 		const Graphics::Surface *result = _omni3dMan.getSurface();
-		g_system->copyRectToScreen(result->getPixels(), result->pitch, 0, 0, result->w, result->h);
+		copyToScreen(result->getPixels(), result->pitch, 0, 0, result->w, result->h);
 		drawCountdown();
 		g_system->updateScreen();
 
@@ -1670,7 +1681,7 @@ void CryOmni3DEngine_Versailles::redrawWarp() {
 	             _currentWarpImage->getPalette().size(), true);
 	if (_forceRedrawWarp) {
 		const Graphics::Surface *result = _omni3dMan.getSurface();
-		g_system->copyRectToScreen(result->getPixels(), result->pitch, 0, 0, result->w, result->h);
+		copyToScreen(result->getPixels(), result->pitch, 0, 0, result->w, result->h);
 		drawCountdown();
 		g_system->updateScreen();
 		_forceRedrawWarp = false;
@@ -1756,7 +1767,7 @@ void CryOmni3DEngine_Versailles::displayObject(const Common::String &imgName,
 		(this->*hook)(dstSurface);
 	}
 
-	g_system->copyRectToScreen(dstSurface.getPixels(), dstSurface.pitch, 0, 0,
+	copyToScreen(dstSurface.getPixels(), dstSurface.pitch, 0, 0,
 	                           dstSurface.w, dstSurface.h);
 	g_system->updateScreen();
 
@@ -1948,7 +1959,7 @@ void CryOmni3DEngine_Versailles::drawVideoSubtitles(uint frameNum) {
 	// Enable clipping to avoid refreshing text at every frame
 	setHNMClipping(Common::Rect(0, 0, 640, top));
 
-	g_system->copyRectToScreen(tmp.getPixels(), tmp.pitch, 0, top, tmp.w, tmp.h);
+	copyToScreen(tmp.getPixels(), tmp.pitch, 0, top, tmp.w, tmp.h);
 	g_system->updateScreen();
 }
 
