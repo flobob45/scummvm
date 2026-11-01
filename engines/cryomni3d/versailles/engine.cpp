@@ -1433,6 +1433,21 @@ int CryOmni3DEngine_Versailles::handleWarp() {
 
 		actionId = _currentPlace->hitTest(mouseRev);
 
+#ifdef TRACE_JOUEABILITE
+		// Trace de test de jouabilité : à quelle position de zone correspond
+		// chaque déplacement de souris. Permet de comparer SD et HD sans jouer.
+		static uint s_derniereAction = 0;
+		static Common::Point s_dernierPoint(-1, -1);
+		if (actionId != s_derniereAction || mouseRev != s_dernierPoint) {
+			if (actionId != s_derniereAction) {
+				warning("ZONE action=%u (0 = aucune) en panorama %d,%d (souris %d,%d)",
+				        actionId, mouseRev.x, mouseRev.y, mouse.x, mouse.y);
+			}
+			s_derniereAction = actionId;
+			s_dernierPoint = mouseRev;
+		}
+#endif
+
 		exit = handleWarpMouse(&actionId, movingCursor);
 		if (shouldAbort()) {
 			// We abort if we quit or if we load from GMM

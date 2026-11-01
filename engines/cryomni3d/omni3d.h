@@ -24,6 +24,16 @@
 
 #include "graphics/surface.h"
 
+// Outils de mesure du chantier Versailles HD : dump de la projection et trace
+// de la jouabilité. Actif tant que le chantier dure ; désactiver en retirant
+// cette ligne (les blocs correspondants disparaissent tous ensemble).
+#define DUMP_OMNI3D
+
+// Trace verbeuse du survol (une ligne par déplacement de souris, plus les zones
+// de chaque pièce). Utile pour éprouver la conversion des clics, mais elle noie
+// le journal en jeu normal : à réactiver pour un test seulement.
+// #define TRACE_JOUEABILITE
+
 namespace CryOmni3D {
 
 class Omni3DManager {

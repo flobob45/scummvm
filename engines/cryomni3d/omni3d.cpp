@@ -216,8 +216,6 @@ void Omni3DManager::updateImageCoords() {
 	_dirty = true;
 }
 
-#define DUMP_OMNI3D
-
 const Graphics::Surface *Omni3DManager::getSurface() {
 	if (!_sourceSurface) {
 		return nullptr;
@@ -305,6 +303,25 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 			}
 			fp.close();
 		}
+		// Tout le tableau de projection : permet de rejouer mapMouseCoords hors du
+		// jeu (outils/verifier-jouabilite.py) et de comparer deux formules pour
+		// TOUTES les positions de la souris, pas seulement celles qu'on clique.
+		Common::DumpFile fc;
+		if (fc.open("/tmp/omni3d-coords.bin")) {
+			fc.writeUint32BE(_srcWidth);
+			fc.writeUint32BE(_srcHeight);
+			fc.writeUint32BE(_width);
+			fc.writeUint32BE(_height);
+			fc.writeUint32BE(_cols);
+			fc.writeUint32BE(_rows);
+			// +2 : la formule de mapMouseCoords lit les coins du dernier carreau
+			// deux entiers au-delà de la dernière ligne écrite par updateImageCoords.
+			const int total = 2 * (_cols + 1) * (_rows + 1) + 2;
+			for (int q = 0; q < total; q++) {
+				fc.writeSint32BE(_imageCoords[q]);
+			}
+			fc.close();
+		}
 		Common::DumpFile f;
 		if (f.open("/tmp/omni3d-dump.pgm")) {
 			f.writeString(Common::String::format("P5\n%d %d\n255\n", _surface.w, _surface.h));
@@ -337,15 +354,52 @@ Common::Point Omni3DManager::mapMouseCoords(const Common::Point &mouse) {
 	uint pas = 2 * (uint)(_cols + 1);
 	uint off = pas * squareY + 2 * squareX;
 
-	pt.x = ((_imageCoords[off + 2] +
-	         smallY * ((_imageCoords[off + pas + 2] - _imageCoords[off + 2]) >> 4) +
-	         (smallX * smallY) * ((_imageCoords[off + pas + 4] - _imageCoords[off + pas + 2]) >> 8) +
-	         (smallX * (kTileSize - smallY)) * ((_imageCoords[off + 4] - _imageCoords[off + 2]) >> 8))
-	        & 0x07ff0000) >> 16;
-	pt.y = (_imageCoords[off + 3] +
-	        smallY * ((_imageCoords[off + pas + 3] - _imageCoords[off + 3]) >> 4) +
-	        (smallX * smallY) * ((_imageCoords[off + pas + 5] - _imageCoords[off + pas + 3]) >> 8) +
-	        (smallX * (kTileSize - smallY)) * ((_imageCoords[off + 5] - _imageCoords[off + 3]) >> 8)) >> 16;
+	// Les quatre coins du carreau, en 16.16. On leur applique le MÊME recalage de
+	// couture que le rendu (getSurface) : sans lui, un carreau qui enjambe le
+	// raccord du cylindre interpole d'un bord à l'autre du panorama et le clic
+	// tombe à l'opposé de ce que le joueur voit.
+	long x00 = _imageCoords[off + 2];
+	long x10 = _imageCoords[off + 4];
+	long x01 = _imageCoords[off + pas + 2];
+	long x11 = _imageCoords[off + pas + 4];
+	const long demi = (long)_srcWidth << 15;
+	const long tour = (long)_srcWidth << 16;
+	if (x10 - x00 > demi) x10 -= tour; else if (x00 - x10 > demi) x10 += tour;
+	if (x01 - x00 > demi) x01 -= tour; else if (x00 - x01 > demi) x01 += tour;
+	if (x11 - x00 > demi) x11 -= tour; else if (x00 - x11 > demi) x11 += tour;
+
+	const long vx = x00 +
+	                smallY * ((x01 - x00) >> 4) +
+	                (smallX * smallY) * ((x11 - x01) >> 8) +
+	                (smallX * (kTileSize - smallY)) * ((x10 - x00) >> 8);
+	const long vy = _imageCoords[off + 3] +
+	                smallY * ((_imageCoords[off + pas + 3] - _imageCoords[off + 3]) >> 4) +
+	                (smallX * smallY) * ((_imageCoords[off + pas + 5] - _imageCoords[off + pas + 3]) >> 8) +
+	                (smallX * (kTileSize - smallY)) * ((_imageCoords[off + 5] - _imageCoords[off + 3]) >> 8);
+
+	// Le panorama est replié sur lui-même (couture), puis ramené au repère que
+	// tout le reste du moteur attend : celui du panorama d'origine, 2048×768.
+	// Un panorama agrandi (×4 = 8192×3072) donnerait sinon des coordonnées
+	// quatre fois trop grandes aux zones de clic.
+	int px = (int)(vx >> 16) % _srcWidth;
+	if (px < 0) px += _srcWidth;
+	pt.x = px * kDefaultSrcWidth / _srcWidth;
+	pt.y = (int)(vy >> 16) * kDefaultSrcHeight / _srcHeight;
+
+#ifdef TRACE_JOUEABILITE
+	// Trace de la conversion réelle, une ligne par déplacement de souris : prouve
+	// que le jeu reçoit bien la coordonnée attendue par les zones de clic.
+	static int s_dernierX = -1, s_dernierY = -1;
+	if (mouse.x != s_dernierX || mouse.y != s_dernierY) {
+		s_dernierX = mouse.x;
+		s_dernierY = mouse.y;
+		warning("MOUSE %d,%d -> %d,%d  coins %d %d | %d %d  alpha=%.5f beta=%.5f",
+		        mouse.x, mouse.y, pt.x, pt.y,
+		        _imageCoords[off + 2], _imageCoords[off + 4],
+		        _imageCoords[off + pas + 2], _imageCoords[off + pas + 4],
+		        _alpha, _beta);
+	}
+#endif
 
 	return pt;
 }

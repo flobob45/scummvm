@@ -181,6 +181,20 @@ void Place::setupWarpConstraints(Omni3DManager &omni3d) const {
 }
 
 uint Place::hitTest(const Common::Point &point) const {
+#ifdef TRACE_JOUEABILITE
+	// Une fois par pièce : les zones réellement définies par le jeu, dans le
+	// repère 2048x768. Sert à choisir une cible de clic sûre pour les tests.
+	static uint s_dernierePlace = (uint)-1;
+	if (placeId != s_dernierePlace) {
+		s_dernierePlace = placeId;
+		warning("PLACE %u : %u zones", placeId, (uint)zones.size());
+		for (uint i = 0; i < zones.size(); i++) {
+			warning("ZONEDEF id=%u action=%u rct=%d,%d %dx%d",
+			        zones[i].zoneId, zones[i].action, zones[i].rct.left, zones[i].rct.top,
+			        zones[i].rct.width(), zones[i].rct.height());
+		}
+	}
+#endif
 	for (Common::Array<Zone>::const_iterator it = zones.begin(); it != zones.end(); it++) {
 		if (it->action) {
 			if (it->rct.contains(point)) {
