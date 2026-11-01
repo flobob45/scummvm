@@ -22,6 +22,7 @@
 #include "cryomni3d/omni3d.h"
 
 #include "common/rect.h"
+#include "common/textconsole.h"
 
 namespace CryOmni3D {
 
@@ -30,6 +31,17 @@ void Omni3DManager::init(double hfov) {
 	_beta = 0.;
 	_xSpeed = 0.;
 	_ySpeed = 0.;
+
+	if (kRenderWidth != kDefaultWidth) {
+		if (kRenderWidth >= kTileSize && kRenderWidth <= kMaxCols * kTileSize &&
+		        (kRenderWidth % kTileSize) == 0) {
+			_width = kRenderWidth;
+			_cols = kRenderWidth / kTileSize;
+		} else {
+			warning("kRenderWidth=%d ignoré : multiple de %d attendu, au plus %d",
+			        kRenderWidth, kTileSize, kMaxCols * kTileSize);
+		}
+	}
 
 	double oppositeSide = tan(hfov / 2.) / (4. / 3.);
 	double vf = atan2(oppositeSide, 1.);

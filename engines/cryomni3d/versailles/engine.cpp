@@ -163,7 +163,7 @@ Common::Error CryOmni3DEngine_Versailles::run() {
 
 	_countdownSurface.create(40, 15, Graphics::PixelFormat::createFormatCLUT8());
 
-	initGraphics(640, 480);
+	initGraphics(Omni3DManager::kRenderWidth, Omni3DManager::kDefaultHeight);
 	setMousePos(Common::Point(320, 200));
 
 	syncSoundSettings();
