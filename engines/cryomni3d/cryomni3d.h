@@ -228,6 +228,9 @@ private:
 	// plus rien, et c'est cette copie qui sert à convertir les rectangles.
 	byte _screenPalette[256 * 3];
 
+	// Surface RGB de conversion, réutilisée d'une copie à l'autre.
+	Graphics::Surface _convSurface;
+
 	Common::Rect _hnmClipping;
 	bool _hnmHasClip;
 

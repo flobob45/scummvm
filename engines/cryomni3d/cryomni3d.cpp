@@ -64,6 +64,7 @@ CryOmni3DEngine::CryOmni3DEngine(OSystem *syst,
 }
 
 CryOmni3DEngine::~CryOmni3DEngine() {
+	_convSurface.free();
 }
 
 Common::Error CryOmni3DEngine::run() {
@@ -269,32 +270,12 @@ void CryOmni3DEngine::setCursor(const Graphics::Cursor &cursor) const {
 		return;
 	}
 
-	// Écran en vraies couleurs : les curseurs du jeu sont indexés et n'ont pas
-	// de palette propre — ils empruntaient celle de l'écran, qui n'existe plus.
-	// On les convertit donc à la volée avec la palette courante, sinon ils
-	// sortent entièrement noirs.
-	Graphics::Surface conv;
-	conv.create(cursor.getWidth(), cursor.getHeight(), screenFormat);
-	const byte *src = cursor.getSurface();
-	for (uint y = 0; y < cursor.getHeight(); y++) {
-		byte *dst = (byte *)conv.getBasePtr(0, y);
-		for (uint x = 0; x < cursor.getWidth(); x++) {
-			const byte idx = src[y * cursor.getWidth() + x];
-			const byte *c = &_screenPalette[idx * 3];
-			const uint32 color = screenFormat.RGBToColor(c[0], c[1], c[2]);
-			if (screenFormat.bytesPerPixel == 2) {
-				((uint16 *)dst)[x] = (uint16)color;
-			} else {
-				((uint32 *)dst)[x] = color;
-			}
-		}
-	}
-	const byte keyIdx = cursor.getKeyColor();
-	const byte *kc = &_screenPalette[keyIdx * 3];
-	const uint32 keyColor = screenFormat.RGBToColor(kc[0], kc[1], kc[2]);
-
-	CursorMan.replaceCursor(conv, cursor.getHotspotX(), cursor.getHotspotY(), keyColor);
-	conv.free();
+	// Écran en vraies couleurs : le curseur reste indexé et sa transparence est
+	// par INDEX (getKeyColor() renvoie 0). Le convertir en RGB à la main cassait
+	// cette transparence et produisait un damier. On donne donc le curseur tel
+	// quel au backend, avec la palette courante : c'est lui qui convertit.
+	CursorMan.replaceCursor(&cursor);
+	CursorMan.replaceCursorPalette(_screenPalette, 0, 256);
 }
 
 void CryOmni3DEngine::setCursor(uint cursorId) const {
@@ -457,20 +438,34 @@ void CryOmni3DEngine::setPalette(const byte *colors, uint start, uint num) {
 
 	if (g_system->getScreenFormat().bytesPerPixel == 1) {
 		g_system->getPaletteManager()->setPalette(colors, start, num);
+	} else {
+		// Le curseur est indexé : sa palette doit suivre celle de l'écran,
+		// sinon il reste noir jusqu'au prochain changement de curseur.
+		CursorMan.replaceCursorPalette(_screenPalette, 0, 256);
 	}
 	// Don't update screen there: palette will be updated with next updateScreen call
 }
 
 void CryOmni3DEngine::copyToScreen(const void *buf, int pitch, int x, int y, int w, int h) {
 	const uint32 debutCopie = g_system->getMillis();
+	// Diagnostic : une source indexee dont le pitch est plus court que la largeur
+	// fait deriver chaque ligne -> triangle en damier vers le bas de l'ecran.
+	if (pitch < w) {
+		warning("COPIE INCOHERENTE : pitch=%d < largeur=%d (x=%d y=%d h=%d)", pitch, w, x, y, h);
+	}
 	const Graphics::PixelFormat screenFormat = g_system->getScreenFormat();
 	if (screenFormat.bytesPerPixel == 1) {
 		g_system->copyRectToScreen(buf, pitch, x, y, w, h);
 		return;
 	}
 
-	Graphics::Surface conv;
-	conv.create(w, h, screenFormat);
+	// Surface de conversion réutilisée : en allouer une à chaque rectangle
+	// faisait apparaître des images noires intermédiaires pendant les
+	// transitions (l'écran est nettoyé puis redessiné en plusieurs morceaux).
+	if (_convSurface.w != w || _convSurface.h != h || _convSurface.format != screenFormat) {
+		_convSurface.create(w, h, screenFormat);
+	}
+	Graphics::Surface &conv = _convSurface;
 	for (int row = 0; row < h; row++) {
 		const byte *src = (const byte *)buf + row * pitch;
 		byte *dst = (byte *)conv.getBasePtr(0, row);

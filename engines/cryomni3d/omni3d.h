@@ -120,7 +120,9 @@ private:
 	double _alphaMin, _alphaMax;
 	double _betaMin, _betaMax;
 
-	int _imageCoords[(kMaxRows + 1) * kCoordsPerRow];
+	// +2 : la derniere ligne de projection ecrit son dernier noeud deux entiers
+	// au-dela de la derniere ligne complete (constate en 21:9, _cols = 160).
+	int _imageCoords[(kMaxRows + 1) * kCoordsPerRow + 2];
 	// _anglesH décrit les nœuds VERTICAUX (un par ligne de carreaux, +1),
 	// _oppositeV les nœuds HORIZONTAUX de la moitié gauche et du centre seulement :
 	// la moitié droite est remplie par symétrie (cf. l'offset de updateImageCoords).
