@@ -125,9 +125,18 @@ void CryOmni3DEngine_Versailles::initializePath(const Common::FSNode &gamePath) 
  */
 static Common::Point chooseRenderSize(const Common::Rect &desktop) {
 	int width = Omni3DManager::kDefaultRenderWidth;
-	const int height = Omni3DManager::kDefaultRenderHeight;
+	int height = Omni3DManager::kDefaultRenderHeight;
 
 	if (desktop.isValidRect() && desktop.width() > 0 && desktop.height() > 0) {
+		// La hauteur de rendu ne doit JAMAIS dépasser celle de l'écran : sur un
+		// 21:9 de 1080 de haut, 1088 sortait 8 px sous le cadre. On prend le plus
+		// grand multiple de kTileSize qui tient (1080 -> 1072).
+		const int hauteurEcran = (desktop.height() / Omni3DManager::kTileSize) *
+		                         Omni3DManager::kTileSize;
+		if (hauteurEcran >= Omni3DManager::kTileSize &&
+		        hauteurEcran <= Omni3DManager::kMaxRows * Omni3DManager::kTileSize) {
+			height = hauteurEcran;
+		}
 		const double aspect = (double)desktop.width() / desktop.height();
 		// 21:9 (2,33) et au-delà : on élargit au maximum de la grille (2560).
 		if (aspect >= 2.0) {
@@ -1519,7 +1528,27 @@ int CryOmni3DEngine_Versailles::handleWarp() {
 			copyToScreen(result->getPixels(), result->pitch, 0, 0, result->w, result->h);
 			if (!exit) {
 				drawCountdown();
+				// Mesure de fluidité : coût de la présentation seule.
+				const uint32 debutEcran = g_system->getMillis();
 				g_system->updateScreen();
+				{
+					static uint32 s_somme = 0;
+					static int s_n = 0;
+					static uint32 s_debut = 0;
+					const uint32 now = g_system->getMillis();
+					if (s_debut == 0) {
+						s_debut = now;
+					}
+					s_somme += now - debutEcran;
+					s_n++;
+					if (now - s_debut >= 2000) {
+						warning("ECRAN : %.1f ms par updateScreen (%d images)",
+						        (double)s_somme / s_n, s_n);
+						s_debut = now;
+						s_somme = 0;
+						s_n = 0;
+					}
+				}
 				if (firstDraw && _fadedPalette) {
 					fadeInPalette(_mainPalette);
 					_fadedPalette = false;
@@ -1543,6 +1572,7 @@ int CryOmni3DEngine_Versailles::handleWarp() {
 		}
 
 		// Slow down loop but after updating screen
+		// (mesure : attente ramenée à 0 pour chiffrer son coût réel)
 		g_system->delayMillis(10);
 	}
 	_canLoadSave = false;

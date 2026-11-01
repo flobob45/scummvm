@@ -23,6 +23,7 @@
 
 #include "common/file.h"
 #include "common/rect.h"
+#include "common/system.h"   // g_system, pour la mesure de fluidité
 #include "common/str.h"
 #include "common/textconsole.h"
 
@@ -236,6 +237,7 @@ void Omni3DManager::updateImageCoords() {
 }
 
 const Graphics::Surface *Omni3DManager::getSurface() {
+	const uint32 debutTravail = g_system->getMillis();
 	if (!_sourceSurface) {
 		return nullptr;
 	}
@@ -280,8 +282,8 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 				// Raccord du cylindre : deux coins voisins peuvent tomber de part et
 				// d'autre de la couture (x = 2047 et x = 0). Sans ce recalage, leur
 				// interpolation traverse toute l'image et produit un déchirement.
-				const long demi = (long)_srcWidth << 15;   // moitié de la largeur, en 16.16
-				const long tour = (long)_srcWidth << 16;
+				const int64 demi = (int64)_srcWidth << 15;   // moitié de la largeur, en 16.16
+				const int64 tour = (int64)_srcWidth << 16;
 				int x10r = x10, x01r = x01;
 				if (x10r - x00 > demi) x10r -= tour; else if (x00 - x10r > demi) x10r += tour;
 				if (x01r - x00 > demi) x01r -= tour; else if (x00 - x01r > demi) x01r += tour;
@@ -289,14 +291,14 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 
 				for (int y = 0; y < kTileSize; y++) {
 					for (int x = 0; x < kTileSize; x++) {
-						const long wx0 = (long)(kTileSize - x) * (kTileSize - y);
-						const long wx1 = (long)x * (kTileSize - y);
-						const long wx2 = (long)(kTileSize - x) * y;
-						const long wx3 = (long)x * y;
-						const long sx = ((long)x00 * wx0 + (long)x10r * wx1 +
-						                 (long)x01r * wx2 + (long)x11 * wx3) >> 8;
-						const long sy = ((long)y00 * wx0 + (long)y10 * wx1 +
-						                 (long)y01 * wx2 + (long)y11 * wx3) >> 8;
+						const int64 wx0 = (int64)(kTileSize - x) * (kTileSize - y);
+						const int64 wx1 = (int64)x * (kTileSize - y);
+						const int64 wx2 = (int64)(kTileSize - x) * y;
+						const int64 wx3 = (int64)x * y;
+						const int64 sx = ((int64)x00 * wx0 + (int64)x10r * wx1 +
+						                 (int64)x01r * wx2 + (int64)x11 * wx3) >> 8;
+						const int64 sy = ((int64)y00 * wx0 + (int64)y10 * wx1 +
+						                 (int64)y01 * wx2 + (int64)y11 * wx3) >> 8;
 						int px = (int)(sx >> 16) & masqueX;
 						int py = (int)(sy >> 16);
 						if (py < 0) py = 0;
@@ -305,9 +307,9 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 					}
 					dst += _width - kTileSize;
 				}
-				dst -= (long)_width * kTileSize - kTileSize;
+				dst -= (int64)_width * kTileSize - kTileSize;
 			}
-			dst += (long)_width * (kTileSize - 1);
+			dst += (int64)_width * (kTileSize - 1);
 		}
 
 		_dirty = false;
@@ -350,6 +352,31 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 	}
 #endif
 
+	// Mesure de fluidité : combien d'images de panorama sont rendues par
+	// seconde et combien de temps coûte chacune. À retirer une fois le
+	// diagnostic fait (bloc isolé, rien d'autre ne dépend de lui).
+	{
+		static uint32 s_dernier = 0;
+		static int s_images = 0;
+		static uint32 s_travail = 0;
+		const uint32 maintenant = g_system->getMillis();
+		if (s_dernier == 0) {
+			s_dernier = maintenant;
+		}
+		s_images++;
+		s_travail += maintenant - debutTravail;
+		if (maintenant - s_dernier >= 2000) {
+			const uint32 ecoule = maintenant - s_dernier;
+			warning("FPS %dx%d : %.1f images/s, %.1f ms de calcul par image",
+			        _width, _height, s_images * 1000.0 / ecoule,
+			        (double)s_travail / s_images);
+			s_dernier = maintenant;
+			s_images = 0;
+			s_travail = 0;
+		}
+		(void)s_travail;
+	}
+
 	return &_surface;
 }
 
@@ -377,21 +404,21 @@ Common::Point Omni3DManager::mapMouseCoords(const Common::Point &mouse) {
 	// couture que le rendu (getSurface) : sans lui, un carreau qui enjambe le
 	// raccord du cylindre interpole d'un bord à l'autre du panorama et le clic
 	// tombe à l'opposé de ce que le joueur voit.
-	long x00 = _imageCoords[off + 2];
-	long x10 = _imageCoords[off + 4];
-	long x01 = _imageCoords[off + pas + 2];
-	long x11 = _imageCoords[off + pas + 4];
-	const long demi = (long)_srcWidth << 15;
-	const long tour = (long)_srcWidth << 16;
+	int64 x00 = _imageCoords[off + 2];
+	int64 x10 = _imageCoords[off + 4];
+	int64 x01 = _imageCoords[off + pas + 2];
+	int64 x11 = _imageCoords[off + pas + 4];
+	const int64 demi = (int64)_srcWidth << 15;
+	const int64 tour = (int64)_srcWidth << 16;
 	if (x10 - x00 > demi) x10 -= tour; else if (x00 - x10 > demi) x10 += tour;
 	if (x01 - x00 > demi) x01 -= tour; else if (x00 - x01 > demi) x01 += tour;
 	if (x11 - x00 > demi) x11 -= tour; else if (x00 - x11 > demi) x11 += tour;
 
-	const long vx = x00 +
+	const int64 vx = x00 +
 	                smallY * ((x01 - x00) >> 4) +
 	                (smallX * smallY) * ((x11 - x01) >> 8) +
 	                (smallX * (kTileSize - smallY)) * ((x10 - x00) >> 8);
-	const long vy = _imageCoords[off + 3] +
+	const int64 vy = _imageCoords[off + 3] +
 	                smallY * ((_imageCoords[off + pas + 3] - _imageCoords[off + 3]) >> 4) +
 	                (smallX * smallY) * ((_imageCoords[off + pas + 5] - _imageCoords[off + pas + 3]) >> 8) +
 	                (smallX * (kTileSize - smallY)) * ((_imageCoords[off + 5] - _imageCoords[off + 3]) >> 8);

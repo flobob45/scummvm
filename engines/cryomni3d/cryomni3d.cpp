@@ -263,12 +263,42 @@ bool CryOmni3DEngine::displayHLZ(const Common::Path &filepath, uint32 timeout) {
 }
 
 void CryOmni3DEngine::setCursor(const Graphics::Cursor &cursor) const {
-	CursorMan.replaceCursor(&cursor);
+	const Graphics::PixelFormat screenFormat = g_system->getScreenFormat();
+	if (screenFormat.bytesPerPixel == 1) {
+		CursorMan.replaceCursor(&cursor);
+		return;
+	}
+
+	// Écran en vraies couleurs : les curseurs du jeu sont indexés et n'ont pas
+	// de palette propre — ils empruntaient celle de l'écran, qui n'existe plus.
+	// On les convertit donc à la volée avec la palette courante, sinon ils
+	// sortent entièrement noirs.
+	Graphics::Surface conv;
+	conv.create(cursor.getWidth(), cursor.getHeight(), screenFormat);
+	const byte *src = cursor.getSurface();
+	for (uint y = 0; y < cursor.getHeight(); y++) {
+		byte *dst = (byte *)conv.getBasePtr(0, y);
+		for (uint x = 0; x < cursor.getWidth(); x++) {
+			const byte idx = src[y * cursor.getWidth() + x];
+			const byte *c = &_screenPalette[idx * 3];
+			const uint32 color = screenFormat.RGBToColor(c[0], c[1], c[2]);
+			if (screenFormat.bytesPerPixel == 2) {
+				((uint16 *)dst)[x] = (uint16)color;
+			} else {
+				((uint32 *)dst)[x] = color;
+			}
+		}
+	}
+	const byte keyIdx = cursor.getKeyColor();
+	const byte *kc = &_screenPalette[keyIdx * 3];
+	const uint32 keyColor = screenFormat.RGBToColor(kc[0], kc[1], kc[2]);
+
+	CursorMan.replaceCursor(conv, cursor.getHotspotX(), cursor.getHotspotY(), keyColor);
+	conv.free();
 }
 
 void CryOmni3DEngine::setCursor(uint cursorId) const {
-	const Graphics::Cursor &cursor = _sprites.getCursor(cursorId);
-	CursorMan.replaceCursor(&cursor);
+	setCursor(_sprites.getCursor(cursorId));
 }
 
 bool CryOmni3DEngine::pollEvents() {
@@ -432,6 +462,7 @@ void CryOmni3DEngine::setPalette(const byte *colors, uint start, uint num) {
 }
 
 void CryOmni3DEngine::copyToScreen(const void *buf, int pitch, int x, int y, int w, int h) {
+	const uint32 debutCopie = g_system->getMillis();
 	const Graphics::PixelFormat screenFormat = g_system->getScreenFormat();
 	if (screenFormat.bytesPerPixel == 1) {
 		g_system->copyRectToScreen(buf, pitch, x, y, w, h);
@@ -455,6 +486,28 @@ void CryOmni3DEngine::copyToScreen(const void *buf, int pitch, int x, int y, int
 	}
 	g_system->copyRectToScreen(conv.getPixels(), conv.pitch, x, y, w, h);
 	conv.free();
+
+	// Mesure de fluidité : coût de la conversion et de l'envoi à l'écran.
+	// À retirer avec le compteur d'Omni3DManager une fois le diagnostic fait.
+	{
+		static uint32 s_dernier = 0;
+		static int s_images = 0;
+		static uint32 s_travail = 0;
+		const uint32 maintenant = g_system->getMillis();
+		if (s_dernier == 0) {
+			s_dernier = maintenant;
+		}
+		s_images++;
+		s_travail += maintenant - debutCopie;
+		if (maintenant - s_dernier >= 2000) {
+			const uint32 ecoule = maintenant - s_dernier;
+			warning("COPIE %dx%d : %.1f copies/s, %.1f ms par copie",
+			        w, h, s_images * 1000.0 / ecoule, (double)s_travail / s_images);
+			s_dernier = maintenant;
+			s_images = 0;
+			s_travail = 0;
+		}
+	}
 }
 
 void CryOmni3DEngine::initUILayout() {
