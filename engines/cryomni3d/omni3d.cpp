@@ -28,43 +28,14 @@
 
 namespace CryOmni3D {
 
-void Omni3DManager::setSourceSurface(const Graphics::Surface *surface) {
-	_sourceSurface = surface;
-	if (surface) {
-		// La taille du panorama fait foi : le dossier de surcharge HD fournit des
-		// images agrandies (×4), et toute la projection en dépend.
-		_srcWidth = surface->w;
-		_srcHeight = surface->h;
-		_helperValue = _srcWidth * 65536 / (2. * M_PI);
-	}
-	_dirty = true;
-	_dirtyCoords = true;
-}
-
-void Omni3DManager::init(double hfov) {
-	_alpha = 0.;
-	_beta = 0.;
-	_xSpeed = 0.;
-	_ySpeed = 0.;
-
-	if (kRenderWidth != kDefaultWidth) {
-		if (kRenderWidth >= kTileSize && kRenderWidth <= kMaxCols * kTileSize &&
-		        (kRenderWidth % kTileSize) == 0) {
-			_width = kRenderWidth;
-			_cols = kRenderWidth / kTileSize;
-		} else {
-			warning("kRenderWidth=%d ignoré : multiple de %d attendu, au plus %d",
-			        kRenderWidth, kTileSize, kMaxCols * kTileSize);
-		}
-	}
-
-	double oppositeSide = tan(hfov / 2.) / (4. / 3.);
+void Omni3DManager::recalculerGeometrie() {
+	double oppositeSide = tan(_hfov / 2.) / (4. / 3.);
 	double vf = atan2(oppositeSide, 1.);
 	_vfov = (M_PI_2 - vf - (13. / 180.*M_PI)) * 10. / 9.;
 
 	double warpVfov = 155. / 180. * M_PI;
 	double hypV = _srcHeight / 2. / sin(warpVfov / 2.);
-	double oppHTot = tan(hfov / 2.) * kTileSize / (_width / 2.);
+	double oppHTot = tan(_hfov / 2.) * kTileSize / (_width / 2.);
 	_helperValue = _srcWidth * 65536 / (2. * M_PI);
 
 	for (int i = 0; i < _rows + 1; i++) {
@@ -87,6 +58,43 @@ void Omni3DManager::init(double hfov) {
 			_squaresCoords[i][j] = coord;
 		}
 	}
+
+}
+
+void Omni3DManager::setSourceSurface(const Graphics::Surface *surface) {
+	_sourceSurface = surface;
+	if (surface) {
+		// La taille du panorama fait foi : le dossier de surcharge HD fournit des
+		// images agrandies (×4), et toute la projection en dépend.
+		_srcWidth = surface->w;
+		_srcHeight = surface->h;
+		// La géométrie dépend de la taille de la source : la recalculer, sinon la
+		// projection mélange l'échelle du HLZ et celle du panorama HD.
+		recalculerGeometrie();
+	}
+	_dirty = true;
+	_dirtyCoords = true;
+}
+
+void Omni3DManager::init(double hfov) {
+	_hfov = hfov;
+	_alpha = 0.;
+	_beta = 0.;
+	_xSpeed = 0.;
+	_ySpeed = 0.;
+
+	if (kRenderWidth != kDefaultWidth) {
+		if (kRenderWidth >= kTileSize && kRenderWidth <= kMaxCols * kTileSize &&
+		        (kRenderWidth % kTileSize) == 0) {
+			_width = kRenderWidth;
+			_cols = kRenderWidth / kTileSize;
+		} else {
+			warning("kRenderWidth=%d ignoré : multiple de %d attendu, au plus %d",
+			        kRenderWidth, kTileSize, kMaxCols * kTileSize);
+		}
+	}
+
+	recalculerGeometrie();
 
 	_surface.create(_width, _height, Graphics::PixelFormat::createFormatCLUT8());
 	clearConstraints();
@@ -204,7 +212,7 @@ void Omni3DManager::updateImageCoords() {
 	_dirty = true;
 }
 
-//#define DUMP_OMNI3D
+#define DUMP_OMNI3D
 
 const Graphics::Surface *Omni3DManager::getSurface() {
 	if (!_sourceSurface) {

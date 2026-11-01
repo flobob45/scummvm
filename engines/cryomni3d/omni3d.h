@@ -62,6 +62,7 @@ public:
 	virtual ~Omni3DManager();
 
 	void init(double hfov);
+	void recalculerGeometrie();
 
 	void setSourceSurface(const Graphics::Surface *surface);
 
@@ -87,6 +88,7 @@ private:
 	void updateImageCoords();
 
 	double _vfov;
+	double _hfov;   // conservé pour recalculer la géométrie si la source change
 
 	double _alpha, _beta;
 	double _xSpeed, _ySpeed;

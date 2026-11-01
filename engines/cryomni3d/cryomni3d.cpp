@@ -168,6 +168,7 @@ void CryOmni3DEngine::playHNM(const Common::Path &filepath, Audio::Mixer::SoundT
 }
 
 Image::ImageDecoder *CryOmni3DEngine::loadHLZ(const Common::Path &filepath) {
+	warning("HLZCHARGE: %s", filepath.toString(Common::Path::kNativeSeparator).c_str());
 	// Dossier de surcharge HD : à côté du HLZ, sous HD/, un PNG du même nom
 	// (agrandi ×4 puis quantifié à 256 couleurs pour rester en CLUT8).
 	// Son absence ramène au HLZ d'origine : la surcharge est optionnelle.
