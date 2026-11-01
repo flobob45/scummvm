@@ -36,6 +36,10 @@
 #include "cryomni3d/cryomni3d.h"
 #include "cryomni3d/datstream.h"
 
+#include "common/config-manager.h"
+
+#include "image/png.h"
+
 #include "cryomni3d/image/hlz.h"
 #include "cryomni3d/image/hnm.h"
 #include "video/hnm_decoder.h"
@@ -164,6 +168,34 @@ void CryOmni3DEngine::playHNM(const Common::Path &filepath, Audio::Mixer::SoundT
 }
 
 Image::ImageDecoder *CryOmni3DEngine::loadHLZ(const Common::Path &filepath) {
+	// Dossier de surcharge HD : à côté du HLZ, sous HD/, un PNG du même nom
+	// (agrandi ×4 puis quantifié à 256 couleurs pour rester en CLUT8).
+	// Son absence ramène au HLZ d'origine : la surcharge est optionnelle.
+	Common::String base = filepath.baseName();
+	const size_t point = base.findLastOf('.');
+	if (point != Common::String::npos) {
+		base = base.substr(0, point);
+	}
+	Common::Path hdPath = filepath.getParent()
+	                      .appendComponent("HD")
+	                      .appendComponent(base + ".png");
+	// Common::File ne résout pas ce chemin : le fichier physique est sous DATAS_V/
+	// avec des majuscules, alors que le chemin de jeu est relatif et en minuscules.
+	// Pour le prototype on passe par le chemin absolu du jeu.
+	// ScummVM sandboxe l'accès au dossier de jeu : on ouvre donc en relatif,
+	// depuis la racine du jeu.
+	Common::Path hdRel("hd_" + base + ".png");
+	Common::File hdFile;
+	if (hdFile.open(hdRel)) {
+		Image::ImageDecoder *hdDecoder = new Image::PNGDecoder();
+		if (hdDecoder->loadStream(hdFile)) {
+			return hdDecoder;
+		}
+		warning("Failed to load HD image %s, falling back to HLZ",
+		        hdPath.toString(Common::Path::kNativeSeparator).c_str());
+		delete hdDecoder;
+	}
+
 	Common::File file;
 
 	if (!file.open(filepath)) {
