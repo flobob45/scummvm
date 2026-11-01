@@ -58,13 +58,16 @@ public:
 	// tout le rendu de 144 px.
 	static const int kDefaultSrcWidth = 2048;
 	static const int kDefaultSrcHeight = 768;
-	// Largeur de rendu effectivement utilisée, le temps de mettre au point
-	// l'élargissement : 640 = 4:3 d'origine, 848 = 16:9, 1120 = 21:9.
-	// Doit rester un multiple de kTileSize et ne pas dépasser kMaxCols*taille.
-	static const int kRenderWidth = 640;
-	// capacité maximale des tableaux : 1120 px de large (21:9) et 480 de haut
-	static const int kMaxCols = 1120 / kTileSize;    // 70 carreaux
-	static const int kMaxRows = 480 / kTileSize;     // 30 carreaux
+	// Cible : 1920x1088, soit du 16:9 (1080 n'est pas un multiple de 16 : 68
+	// carreaux = 1088). La source (8192x3072 sur 360x155 degrés) est déjà à
+	// 1:1 à cette taille — au-delà, on interpole sans gagner de détail. La
+	// montée vers l'écran natif est faite par le backend, pas ici.
+	// Largeur et hauteur doivent rester des multiples de kTileSize.
+	static const int kRenderWidth = 1920;
+	static const int kRenderHeight = 1088;
+	// capacité maximale des tableaux : 2560 px de large (21:9) et 1088 de haut
+	static const int kMaxCols = 2560 / kTileSize;    // 160 carreaux
+	static const int kMaxRows = 1088 / kTileSize;    // 68 carreaux
 	// une ligne de nœuds compte kMaxCols+1 colonnes, deux int par nœud
 	static const int kCoordsPerRow = (kMaxCols + 1) * 2;
 

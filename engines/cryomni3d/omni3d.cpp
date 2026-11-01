@@ -29,7 +29,9 @@
 namespace CryOmni3D {
 
 void Omni3DManager::recalculerGeometrie() {
-	double oppositeSide = tan(_hfov / 2.) / (4. / 3.);
+	// Le rapport hauteur/largeur dépend de la surface de rendu : 480/640 = 0,75
+	// redonne exactement l'ancien (4/3) en dur, 1088/1920 donne le 16:9.
+	double oppositeSide = tan(_hfov / 2.) * ((double)_height / _width);
 	double vf = atan2(oppositeSide, 1.);
 	_vfov = (M_PI_2 - vf - (13. / 180.*M_PI)) * 10. / 9.;
 
@@ -83,15 +85,21 @@ void Omni3DManager::init(double hfov) {
 	_xSpeed = 0.;
 	_ySpeed = 0.;
 
-	if (kRenderWidth != kDefaultWidth) {
-		if (kRenderWidth >= kTileSize && kRenderWidth <= kMaxCols * kTileSize &&
-		        (kRenderWidth % kTileSize) == 0) {
-			_width = kRenderWidth;
-			_cols = kRenderWidth / kTileSize;
-		} else {
-			warning("kRenderWidth=%d ignoré : multiple de %d attendu, au plus %d",
-			        kRenderWidth, kTileSize, kMaxCols * kTileSize);
-		}
+	if (kRenderWidth >= kTileSize && kRenderWidth <= kMaxCols * kTileSize &&
+	        (kRenderWidth % kTileSize) == 0) {
+		_width = kRenderWidth;
+		_cols = kRenderWidth / kTileSize;
+	} else {
+		warning("kRenderWidth=%d ignoré : multiple de %d attendu, au plus %d",
+		        kRenderWidth, kTileSize, kMaxCols * kTileSize);
+	}
+	if (kRenderHeight >= kTileSize && kRenderHeight <= kMaxRows * kTileSize &&
+	        (kRenderHeight % kTileSize) == 0) {
+		_height = kRenderHeight;
+		_rows = kRenderHeight / kTileSize;
+	} else {
+		warning("kRenderHeight=%d ignoré : multiple de %d attendu, au plus %d",
+		        kRenderHeight, kTileSize, kMaxRows * kTileSize);
 	}
 
 	recalculerGeometrie();

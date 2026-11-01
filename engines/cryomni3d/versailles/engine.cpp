@@ -120,7 +120,7 @@ Common::Error CryOmni3DEngine_Versailles::run() {
 
 	_dialogsMan.init(138, _messages[22]);
 	_gameVariables.resize(GameVariables::kMax);
-	_omni3dMan.init(75. / 180. * M_PI);
+	_omni3dMan.init(90.9 / 180. * M_PI);
 
 	_dialogsMan.loadGTO(getFilePath(kFileTypeGTO, _localizedFilenames[LocalizedFilenames::kDialogs]));
 	setupDialogVariables();
@@ -173,7 +173,7 @@ Common::Error CryOmni3DEngine_Versailles::run() {
 		// le format documenté dans graphics/pixelformat.h (2 octets, 5/6/5).
 		formats.push_back(Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0));
 		formats.push_back(Graphics::PixelFormat::createFormatRGBA32());
-		initGraphics(Omni3DManager::kRenderWidth, Omni3DManager::kDefaultHeight, formats);
+		initGraphics(Omni3DManager::kRenderWidth, Omni3DManager::kRenderHeight, formats);
 	}
 	setMousePos(Common::Point(320, 200));
 
