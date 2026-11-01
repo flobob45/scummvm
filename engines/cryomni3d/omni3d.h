@@ -28,8 +28,23 @@ namespace CryOmni3D {
 
 class Omni3DManager {
 public:
+	// Géométrie du rendu. Historiquement figée à 640x480 avec des carreaux de 16 px
+	// (40x30), ces valeurs sont désormais nommées pour pouvoir être élargies —
+	// objectif du fork : 848x480 (16:9) puis 1120x480 (21:9), la largeur devant
+	// rester un multiple de kTileSize.
+	static const int kTileSize = 16;
+	static const int kDefaultWidth = 640;
+	static const int kDefaultHeight = 480;
+	// capacité maximale des tableaux : 1120 px de large (21:9) et 480 de haut
+	static const int kMaxCols = 1120 / kTileSize;    // 70 carreaux
+	static const int kMaxRows = 480 / kTileSize;     // 30 carreaux
+	// une ligne de nœuds compte kMaxCols+1 colonnes, deux int par nœud
+	static const int kCoordsPerRow = (kMaxCols + 1) * 2;
+
 	Omni3DManager() : _vfov(0), _alpha(0), _beta(0), _xSpeed(0), _ySpeed(0), _alphaMin(0), _alphaMax(0),
-		_betaMin(0), _betaMax(0), _helperValue(0), _dirty(true), _dirtyCoords(true),
+		_betaMin(0), _betaMax(0), _helperValue(0), _width(kDefaultWidth), _height(kDefaultHeight),
+		_cols(kDefaultWidth / kTileSize), _rows(kDefaultHeight / kTileSize),
+		_dirty(true), _dirtyCoords(true),
 		_sourceSurface(nullptr) {}
 	virtual ~Omni3DManager();
 
@@ -66,12 +81,18 @@ private:
 	double _alphaMin, _alphaMax;
 	double _betaMin, _betaMax;
 
-	int _imageCoords[2544];
-	double _squaresCoords[31][21];
-	double _hypothenusesH[31];
-	double _anglesH[31];
-	double _oppositeV[21];
+	int _imageCoords[(kMaxRows + 1) * kCoordsPerRow];
+	// _anglesH décrit les nœuds VERTICAUX (un par ligne de carreaux, +1),
+	// _oppositeV les nœuds HORIZONTAUX de la moitié gauche et du centre seulement :
+	// la moitié droite est remplie par symétrie (cf. l'offset de updateImageCoords).
+	double _squaresCoords[kMaxRows + 1][kMaxCols / 2 + 1];
+	double _hypothenusesH[kMaxRows + 1];
+	double _anglesH[kMaxRows + 1];
+	double _oppositeV[kMaxCols / 2 + 1];
 	double _helperValue;
+
+	int _width, _height;   // surface rendue
+	int _cols, _rows;      // carreaux
 
 	bool _dirty;
 	bool _dirtyCoords;
