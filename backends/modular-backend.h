@@ -97,6 +97,7 @@ public:
 
 	int16 getHeight() override final;
 	int16 getWidth() override final;
+	Common::Rect getDesktopResolution() const override final;
 	PaletteManager *getPaletteManager() override final;
 	void copyRectToScreen(const void *buf, int pitch, int x, int y, int w, int h) override final;
 	Graphics::Surface *lockScreen() override final;

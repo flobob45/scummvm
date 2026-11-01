@@ -83,6 +83,8 @@ public:
 
 	virtual int16 getHeight() const = 0;
 	virtual int16 getWidth() const = 0;
+	/** Resolution of the physical display, empty if unknown. @see OSystem::getDesktopResolution */
+	virtual Common::Rect getDesktopResolution() const { return Common::Rect(); }
 	void setPalette(const byte *colors, uint start, uint num) override = 0;
 	void grabPalette(byte *colors, uint start, uint num) const override = 0;
 	virtual void copyRectToScreen(const void *buf, int pitch, int x, int y, int w, int h) = 0;

@@ -111,6 +111,38 @@ void CryOmni3DEngine_Versailles::initializePath(const Common::FSNode &gamePath) 
 	}
 }
 
+/**
+ * Choisit la taille de la surface de rendu d'après la résolution du bureau.
+ *
+ * La source des panoramas fait 8192x3072, soit 22,75 px par degré : à 1920x1088
+ * elle est déjà rendue à 1:1. Un écran 4K ne demande donc PAS un rendu 4K — on
+ * n'y gagnerait que de l'interpolation — c'est la fenêtre qui est en 4K et le
+ * backend qui agrandit l'image. Seul le 21:9 élargit réellement le champ
+ * visible, d'où 2560x1088. La hauteur reste 1088 : 1080 n'est pas un multiple
+ * de 16 (la grille de rendu a des carreaux de 16 px).
+ *
+ * En cas de doute sur la résolution du bureau, on garde le 16:9 par défaut.
+ */
+static Common::Point chooseRenderSize(const Common::Rect &desktop) {
+	int width = Omni3DManager::kDefaultRenderWidth;
+	const int height = Omni3DManager::kDefaultRenderHeight;
+
+	if (desktop.isValidRect() && desktop.width() > 0 && desktop.height() > 0) {
+		const double aspect = (double)desktop.width() / desktop.height();
+		// 21:9 (2,33) et au-delà : on élargit au maximum de la grille (2560).
+		if (aspect >= 2.0) {
+			width = Omni3DManager::kMaxCols * Omni3DManager::kTileSize;
+		}
+		debug("CryOmni3D: bureau %dx%d (rapport %.3f), rendu %dx%d",
+		      desktop.width(), desktop.height(), aspect, width, height);
+	} else {
+		debug("CryOmni3D: résolution du bureau inconnue, rendu par défaut %dx%d",
+		      width, height);
+	}
+
+	return Common::Point(width, height);
+}
+
 Common::Error CryOmni3DEngine_Versailles::run() {
 	CryOmni3DEngine::run();
 
@@ -120,7 +152,9 @@ Common::Error CryOmni3DEngine_Versailles::run() {
 
 	_dialogsMan.init(138, _messages[22]);
 	_gameVariables.resize(GameVariables::kMax);
-	_omni3dMan.init(90.9 / 180. * M_PI);
+	// Le rendu doit être choisi AVANT initGraphics(), qui crée l'écran.
+	const Common::Point renderSize = chooseRenderSize(g_system->getDesktopResolution());
+	_omni3dMan.init(renderSize.x, renderSize.y, 90.9 / 180. * M_PI);
 
 	_dialogsMan.loadGTO(getFilePath(kFileTypeGTO, _localizedFilenames[LocalizedFilenames::kDialogs]));
 	setupDialogVariables();
@@ -173,7 +207,7 @@ Common::Error CryOmni3DEngine_Versailles::run() {
 		// le format documenté dans graphics/pixelformat.h (2 octets, 5/6/5).
 		formats.push_back(Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0));
 		formats.push_back(Graphics::PixelFormat::createFormatRGBA32());
-		initGraphics(Omni3DManager::kRenderWidth, Omni3DManager::kRenderHeight, formats);
+		initGraphics(renderSize.x, renderSize.y, formats);
 	}
 	setMousePos(Common::Point(320, 200));
 

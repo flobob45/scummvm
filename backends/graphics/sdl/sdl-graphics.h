@@ -156,6 +156,9 @@ protected:
 	/** Obtain the user configured fullscreen resolution, or default to the desktop resolution */
 	Common::Rect getPreferredFullscreenResolution();
 
+	/** Resolution of the physical display, read straight from SDL. */
+	Common::Rect getDesktopResolution() const override { return _window->getDesktopResolution(); }
+
 	bool defaultGraphicsModeConfig() const;
 
 	/**

@@ -58,13 +58,16 @@ public:
 	// tout le rendu de 144 px.
 	static const int kDefaultSrcWidth = 2048;
 	static const int kDefaultSrcHeight = 768;
-	// Cible : 1920x1088, soit du 16:9 (1080 n'est pas un multiple de 16 : 68
-	// carreaux = 1088). La source (8192x3072 sur 360x155 degrés) est déjà à
+	// Cible par défaut : 1920x1088, soit du 16:9 (1080 n'est pas un multiple de 16 :
+	// 68 carreaux = 1088). La source (8192x3072 sur 360x155 degrés) est déjà à
 	// 1:1 à cette taille — au-delà, on interpole sans gagner de détail. La
 	// montée vers l'écran natif est faite par le backend, pas ici.
-	// Largeur et hauteur doivent rester des multiples de kTileSize.
-	static const int kRenderWidth = 1920;
-	static const int kRenderHeight = 1088;
+	// Ce sont des VALEURS DE REPLI : init() reçoit la taille réelle choisie au
+	// démarrage selon l'écran (1920x1088 ou 2560x1088). Largeur et hauteur
+	// doivent rester des multiples de kTileSize ; la largeur doit en outre être
+	// un multiple de 32 (symétrie de _oppositeV).
+	static const int kDefaultRenderWidth = 1920;
+	static const int kDefaultRenderHeight = 1088;
 	// capacité maximale des tableaux : 2560 px de large (21:9) et 1088 de haut
 	static const int kMaxCols = 2560 / kTileSize;    // 160 carreaux
 	static const int kMaxRows = 1088 / kTileSize;    // 68 carreaux
@@ -80,6 +83,9 @@ public:
 	virtual ~Omni3DManager();
 
 	void init(double hfov);
+	/** Initialise le rendu à la taille demandée, qui doit respecter les contraintes
+	 *  de la grille ; à défaut, la valeur par défaut de cet axe est conservée. */
+	void init(int width, int height, double hfov);
 	void recalculerGeometrie();
 
 	void setSourceSurface(const Graphics::Surface *surface);

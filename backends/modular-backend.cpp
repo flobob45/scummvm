@@ -164,6 +164,10 @@ int16 ModularGraphicsBackend::getWidth() {
 	return _graphicsManager->getWidth();
 }
 
+Common::Rect ModularGraphicsBackend::getDesktopResolution() const {
+	return _graphicsManager->getDesktopResolution();
+}
+
 PaletteManager *ModularGraphicsBackend::getPaletteManager() {
 	return _graphicsManager;
 }

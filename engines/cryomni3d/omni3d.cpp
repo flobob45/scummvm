@@ -79,27 +79,38 @@ void Omni3DManager::setSourceSurface(const Graphics::Surface *surface) {
 }
 
 void Omni3DManager::init(double hfov) {
+	init(kDefaultRenderWidth, kDefaultRenderHeight, hfov);
+}
+
+void Omni3DManager::init(int width, int height, double hfov) {
 	_hfov = hfov;
 	_alpha = 0.;
 	_beta = 0.;
 	_xSpeed = 0.;
 	_ySpeed = 0.;
 
-	if (kRenderWidth >= kTileSize && kRenderWidth <= kMaxCols * kTileSize &&
-	        (kRenderWidth % kTileSize) == 0) {
-		_width = kRenderWidth;
-		_cols = kRenderWidth / kTileSize;
+	// La moitié droite des nœuds horizontaux est remplie par symétrie de
+	// _oppositeV : la largeur doit donc être un multiple de 2 * kTileSize (32).
+	// Une largeur multiple de 16 seulement (848) produit un artefact diagonal.
+	if (width >= 2 * kTileSize && width <= kMaxCols * kTileSize &&
+	        (width % (2 * kTileSize)) == 0) {
+		_width = width;
+		_cols = width / kTileSize;
 	} else {
-		warning("kRenderWidth=%d ignoré : multiple de %d attendu, au plus %d",
-		        kRenderWidth, kTileSize, kMaxCols * kTileSize);
+		_width = kDefaultRenderWidth;
+		_cols = _width / kTileSize;
+		warning("largeur de rendu %d refusée : multiple de %d attendu, au plus %d ; repli sur %d",
+		        width, 2 * kTileSize, kMaxCols * kTileSize, _width);
 	}
-	if (kRenderHeight >= kTileSize && kRenderHeight <= kMaxRows * kTileSize &&
-	        (kRenderHeight % kTileSize) == 0) {
-		_height = kRenderHeight;
-		_rows = kRenderHeight / kTileSize;
+	if (height >= kTileSize && height <= kMaxRows * kTileSize &&
+	        (height % kTileSize) == 0) {
+		_height = height;
+		_rows = height / kTileSize;
 	} else {
-		warning("kRenderHeight=%d ignoré : multiple de %d attendu, au plus %d",
-		        kRenderHeight, kTileSize, kMaxRows * kTileSize);
+		_height = kDefaultRenderHeight;
+		_rows = _height / kTileSize;
+		warning("hauteur de rendu %d refusée : multiple de %d attendu, au plus %d ; repli sur %d",
+		        height, kTileSize, kMaxRows * kTileSize, _height);
 	}
 
 	recalculerGeometrie();

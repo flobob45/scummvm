@@ -32,6 +32,7 @@
 #include "common/path.h"
 #include "common/log.h"
 #include "common/frac.h"
+#include "common/rect.h"
 #include "graphics/pixelformat.h"
 #include "graphics/mode.h"
 #include "graphics/opengl/context.h"
@@ -1225,6 +1226,17 @@ public:
 	 * @return Currently set virtual screen width.
 	 */
 	virtual int16 getWidth() = 0;
+
+	/**
+	 * Return the resolution of the display the game window lives on, in pixels.
+	 *
+	 * Unlike getWidth()/getHeight(), which describe the virtual game screen, this
+	 * is the physical desktop. It lets an engine pick a render size adapted to the
+	 * monitor before calling initGraphics().
+	 *
+	 * @return Desktop resolution, or an empty rect when the backend does not know.
+	 */
+	virtual Common::Rect getDesktopResolution() const { return Common::Rect(); }
 
 	/**
 	 * Return the palette manager singleton.
