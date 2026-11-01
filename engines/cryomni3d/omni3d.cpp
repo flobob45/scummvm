@@ -21,7 +21,9 @@
 
 #include "cryomni3d/omni3d.h"
 
+#include "common/file.h"
 #include "common/rect.h"
+#include "common/str.h"
 #include "common/textconsole.h"
 
 namespace CryOmni3D {
@@ -48,9 +50,9 @@ void Omni3DManager::init(double hfov) {
 	_vfov = (M_PI_2 - vf - (13. / 180.*M_PI)) * 10. / 9.;
 
 	double warpVfov = 155. / 180. * M_PI;
-	double hypV = 768. / 2. / sin(warpVfov / 2.);
+	double hypV = kSrcHeight / 2. / sin(warpVfov / 2.);
 	double oppHTot = tan(hfov / 2.) * kTileSize / (_width / 2.);
-	_helperValue = 2048 * 65536 / (2. * M_PI);
+	_helperValue = kSrcWidth * 65536 / (2. * M_PI);
 
 	for (int i = 0; i < _rows + 1; i++) {
 		double oppH = (i - _rows / 2) * oppHTot;
@@ -165,7 +167,7 @@ void Omni3DManager::updateImageCoords() {
 		for (j = 0; j < demiCols; j++) {
 			double v16 = atan2(_oppositeV[j], v25);
 			double v17 = v16 * _helperValue;
-			double v18 = ((_height / 2) * 65536) - _squaresCoords[i][j] * v26;
+			double v18 = ((kSrcHeight / 2) * 65536) - _squaresCoords[i][j] * v26;
 
 			k += 2;
 			_imageCoords[k + 0] = (int)(tmp + v17);
@@ -179,8 +181,8 @@ void Omni3DManager::updateImageCoords() {
 		double v19 = atan2(_oppositeV[j], v25);
 
 		k += 2;
-		_imageCoords[k + 0] = (int)((2048.*65536.) - (_alpha - v19) * _helperValue);
-		_imageCoords[k + 1] = (int)(((_height / 2) * 65536.) - _squaresCoords[i][j] * v26);
+		_imageCoords[k + 0] = (int)((kSrcWidth * 65536.) - (_alpha - v19) * _helperValue);
+		_imageCoords[k + 1] = (int)(((kSrcHeight / 2) * 65536.) - _squaresCoords[i][j] * v26);
 
 		k += demiCols * 2;
 	}
@@ -189,10 +191,23 @@ void Omni3DManager::updateImageCoords() {
 	_dirty = true;
 }
 
+//#define DUMP_OMNI3D
+
 const Graphics::Surface *Omni3DManager::getSurface() {
 	if (!_sourceSurface) {
 		return nullptr;
 	}
+
+#ifdef DUMP_OMNI3D
+	static bool s_dumped = false;
+	if (!s_dumped) {
+		s_dumped = true;
+		_alpha = 0.;
+		_beta = 0.;
+		_dirtyCoords = true;
+		updateImageCoords();
+	}
+#endif
 
 	if (_dirtyCoords) {
 		updateImageCoords();
@@ -250,6 +265,24 @@ const Graphics::Surface *Omni3DManager::getSurface() {
 
 		_dirty = false;
 	}
+
+#ifdef DUMP_OMNI3D
+	{
+		Common::DumpFile fp;
+		if (fp.open("/tmp/omni3d-params.txt")) {
+			for (int q = 0; q < 12; q++) {
+				fp.writeString(Common::String::format("coords[%d]=%d\n", q, _imageCoords[q]));
+			}
+			fp.close();
+		}
+		Common::DumpFile f;
+		if (f.open("/tmp/omni3d-dump.pgm")) {
+			f.writeString(Common::String::format("P5\n%d %d\n255\n", _surface.w, _surface.h));
+			f.write(_surface.getBasePtr(0, 0), _surface.w * _surface.h);
+			f.close();
+		}
+	}
+#endif
 
 	return &_surface;
 }

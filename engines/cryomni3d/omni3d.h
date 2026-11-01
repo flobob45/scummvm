@@ -35,10 +35,15 @@ public:
 	static const int kTileSize = 16;
 	static const int kDefaultWidth = 640;
 	static const int kDefaultHeight = 480;
+	// Dimensions du panorama SOURCE (les fichiers HLZ du jeu). À ne pas confondre
+	// avec la surface rendue : le centre vertical vaut kSrcHeight/2 = 384, pas
+	// kDefaultHeight/2 = 240. Confondre les deux décale tout le rendu.
+	static const int kSrcWidth = 2048;
+	static const int kSrcHeight = 768;
 	// Largeur de rendu effectivement utilisée, le temps de mettre au point
 	// l'élargissement : 640 = 4:3 d'origine, 848 = 16:9, 1120 = 21:9.
 	// Doit rester un multiple de kTileSize et ne pas dépasser kMaxCols*taille.
-	static const int kRenderWidth = 864;
+	static const int kRenderWidth = 640;
 	// capacité maximale des tableaux : 1120 px de large (21:9) et 480 de haut
 	static const int kMaxCols = 1120 / kTileSize;    // 70 carreaux
 	static const int kMaxRows = 480 / kTileSize;     // 30 carreaux
