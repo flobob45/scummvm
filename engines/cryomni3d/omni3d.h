@@ -25,9 +25,14 @@
 #include "graphics/surface.h"
 
 // Outils de mesure du chantier Versailles HD : dump de la projection et trace
-// de la jouabilité. Actif tant que le chantier dure ; désactiver en retirant
-// cette ligne (les blocs correspondants disparaissent tous ensemble).
-#define DUMP_OMNI3D
+// de la jouabilité.
+//
+// DÉSACTIVÉ pour une vraie partie : le bloc force alpha = beta = 0 au premier
+// affichage et réécrit un PGM de 300 Ko + le tableau de projection À CHAQUE
+// image (~18 Mo/s), ce qui fausse le rendu et la fluidité.
+// À RÉACTIVER pour rejouer les preuves de non-régression (dump-omni3d.sh,
+// verifier-jouabilite.py) et la cartographie des zones.
+// #define DUMP_OMNI3D
 
 // Trace verbeuse du survol (une ligne par déplacement de souris, plus les zones
 // de chaque pièce). Utile pour éprouver la conversion des clics, mais elle noie
