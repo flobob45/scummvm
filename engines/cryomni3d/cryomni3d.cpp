@@ -480,7 +480,12 @@ void CryOmni3DEngine::copyToScreen(const void *buf, int pitch, int x, int y, int
 		}
 	}
 	g_system->copyRectToScreen(conv.getPixels(), conv.pitch, x, y, w, h);
-	conv.free();
+	// Pas de conv.free() ici : sans lui, la surface est réellement réutilisée
+	// d'un appel à l'autre, comme l'annonce le commentaire ci-dessus. La libérer
+	// faisait échouer le test de taille et create() réallouait + remettait à zéro
+	// plusieurs mégaoctets à chaque rectangle (à 2560x1072, 5,5 Mo par copie).
+	// La copie vers le backend est synchrone (copyRectToScreen recopie aussitôt
+	// dans la texture), donc conserver le tampon ne change rien à l'affichage.
 
 	// Mesure de fluidité : coût de la conversion et de l'envoi à l'écran.
 	// À retirer avec le compteur d'Omni3DManager une fois le diagnostic fait.
