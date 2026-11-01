@@ -43,7 +43,7 @@ public:
 	// Largeur de rendu effectivement utilisée, le temps de mettre au point
 	// l'élargissement : 640 = 4:3 d'origine, 848 = 16:9, 1120 = 21:9.
 	// Doit rester un multiple de kTileSize et ne pas dépasser kMaxCols*taille.
-	static const int kRenderWidth = 640;
+	static const int kRenderWidth = 864;
 	// capacité maximale des tableaux : 1120 px de large (21:9) et 480 de haut
 	static const int kMaxCols = 1120 / kTileSize;    // 70 carreaux
 	static const int kMaxRows = 480 / kTileSize;     // 30 carreaux
