@@ -231,13 +231,6 @@ private:
 	// Surface RGB de conversion, réutilisée d'une copie à l'autre.
 	Graphics::Surface _convSurface;
 
-	// Dernière image composée à l'écran, en vraies couleurs. Sert aux fondus :
-	// en RGB, changer la palette ne modifie plus des pixels déjà écrits.
-	Graphics::Surface _composed;
-	Graphics::Surface _fadeBuffer;
-	void drawComposedWithFade(int factor);
-	void drawSurfaceWithFade(const Graphics::Surface &source, int factor);
-
 	Common::Rect _hnmClipping;
 	bool _hnmHasClip;
 

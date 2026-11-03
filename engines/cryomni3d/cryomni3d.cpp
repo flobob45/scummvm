@@ -479,27 +479,6 @@ void CryOmni3DEngine::copyToScreen(const void *buf, int pitch, int x, int y, int
 			}
 		}
 	}
-	// Mémoriser la composition : les fondus agissent désormais sur ces pixels,
-	// changer la palette ne modifie plus une image en vraies couleurs.
-	if (_composed.w != g_system->getWidth() || _composed.h != g_system->getHeight()) {
-		_composed.create(g_system->getWidth(), g_system->getHeight(), screenFormat);
-		memset(_composed.getPixels(), 0, _composed.pitch * _composed.h);
-	}
-	for (int row = 0; row < h; row++) {
-		const int dy = y + row;
-		if (dy < 0 || dy >= _composed.h || x >= _composed.w) {
-			continue;
-		}
-		const int srcX = (x < 0) ? -x : 0;
-		const int dstX = (x < 0) ? 0 : x;
-		const int copie = MIN(w - srcX, _composed.w - dstX);
-		if (copie > 0) {
-			memcpy((byte *)_composed.getBasePtr(0, dy) + dstX * screenFormat.bytesPerPixel,
-			       (const byte *)conv.getBasePtr(0, row) + srcX * screenFormat.bytesPerPixel,
-			       copie * screenFormat.bytesPerPixel);
-		}
-	}
-
 	g_system->copyRectToScreen(conv.getPixels(), conv.pitch, x, y, w, h);
 	// Pas de conv.free() ici : sans lui, la surface est réellement réutilisée
 	// d'un appel à l'autre, comme l'annonce le commentaire ci-dessus. La libérer
@@ -655,55 +634,6 @@ void CryOmni3DEngine::clearScreen() {
 	}
 }
 
-/**
- * Affiche la dernière image composée avec un facteur de luminosité.
- *
- * Sur un écran indexé, le fondu se faisait en modifiant la palette : l'image
- * affichée suivait. En vraies couleurs, les pixels sont figés dans le tampon
- * et changer la palette ne produit plus rien à l'écran — c'est pourquoi le
- * fondu était devenu invisible. On agit donc ici sur les pixels.
- *
- * @param factor 0 = noir, 256 = image normale
- */
-void CryOmni3DEngine::drawComposedWithFade(int factor) {
-	drawSurfaceWithFade(_composed, factor);
-}
-
-void CryOmni3DEngine::drawSurfaceWithFade(const Graphics::Surface &source, int factor) {
-	if (source.w <= 0 || source.h <= 0) {
-		return;
-	}
-	const Graphics::PixelFormat fmt = source.format;
-	if (_fadeBuffer.w != source.w || _fadeBuffer.h != source.h) {
-		_fadeBuffer.create(source.w, source.h, fmt);
-	}
-	for (int y = 0; y < source.h; y++) {
-		const byte *src = (const byte *)source.getBasePtr(0, y);
-		byte *dst = (byte *)_fadeBuffer.getBasePtr(0, y);
-		for (int x = 0; x < source.w; x++) {
-			uint32 color;
-			if (fmt.bytesPerPixel == 2) {
-				color = ((const uint16 *)src)[x];
-			} else {
-				color = ((const uint32 *)src)[x];
-			}
-			byte r, g, b;
-			fmt.colorToRGB(color, r, g, b);
-			r = (byte)(r * factor >> 8);
-			g = (byte)(g * factor >> 8);
-			b = (byte)(b * factor >> 8);
-			color = fmt.RGBToColor(r, g, b);
-			if (fmt.bytesPerPixel == 2) {
-				((uint16 *)dst)[x] = (uint16)color;
-			} else {
-				((uint32 *)dst)[x] = color;
-			}
-		}
-	}
-	g_system->copyRectToScreen(_fadeBuffer.getPixels(), _fadeBuffer.pitch, 0, 0,
-	                           _fadeBuffer.w, _fadeBuffer.h);
-}
-
 void CryOmni3DEngine::fadeOutPalette() {
 	byte palOut[256 * 3];
 	uint16 palWork[256 * 3];
@@ -727,9 +657,6 @@ void CryOmni3DEngine::fadeOutPalette() {
 			palOut[i] = palWork[i] >> 8;
 		}
 		setPalette(palOut, 0, 256);
-		if (g_system->getScreenFormat().bytesPerPixel != 1) {
-			drawComposedWithFade(256 - (int)((step + 1) * 256 / 25));
-		}
 		// Wait 50ms between each steps but refresh screen every 10ms
 		for (uint i = 0; i < 5; i++) {
 			pollEvents();
@@ -754,13 +681,6 @@ void CryOmni3DEngine::fadeInPalette(const byte *palette) {
 		delta[i] = (palette[i] << 8) / 25;
 	}
 
-	// Sauvegarder l'image AVANT de noircir : setBlackPalette écrase _composed.
-	Graphics::Surface sauvegarde;
-	const bool ecranRGB = g_system->getScreenFormat().bytesPerPixel != 1;
-	if (ecranRGB && _composed.w > 0) {
-		sauvegarde.copyFrom(_composed);
-	}
-
 	setBlackPalette();
 	for (uint step = 0; step < 25 && !shouldAbort(); step++) {
 		for (uint i = 0; i < 256 * 3; i++) {
@@ -768,9 +688,6 @@ void CryOmni3DEngine::fadeInPalette(const byte *palette) {
 			palOut[i] = palWork[i] >> 8;
 		}
 		setPalette(palOut, 0, 256);
-		if (ecranRGB && sauvegarde.w > 0) {
-			drawSurfaceWithFade(sauvegarde, (int)((step + 1) * 256 / 25));
-		}
 		// Wait 50ms between each steps but refresh screen every 10ms
 		for (uint i = 0; i < 5; i++) {
 			pollEvents();
@@ -779,9 +696,6 @@ void CryOmni3DEngine::fadeInPalette(const byte *palette) {
 		}
 	}
 	setPalette(palette, 0, 256);
-	if (ecranRGB && sauvegarde.w > 0) {
-		drawSurfaceWithFade(sauvegarde, 256);
-	}
 	pollEvents();
 	g_system->updateScreen();
 	clearKeys();
@@ -795,12 +709,6 @@ void CryOmni3DEngine::setBlackPalette() {
 	memcpy(_screenPalette, pal, sizeof(pal));
 	if (g_system->getScreenFormat().bytesPerPixel == 1) {
 		g_system->getPaletteManager()->setPalette(pal, 0, 256);
-	} else if (_composed.w > 0) {
-		// En vraies couleurs, noircir la composition et l'afficher : sans cela,
-		// l'écran garderait l'image précédente (le tampon est déjà en pixels).
-		memset(_composed.getPixels(), 0, _composed.pitch * _composed.h);
-		g_system->copyRectToScreen(_composed.getPixels(), _composed.pitch, 0, 0,
-		                           _composed.w, _composed.h);
 	}
 	g_system->updateScreen();
 }
