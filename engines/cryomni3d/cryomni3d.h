@@ -197,8 +197,8 @@ protected:
 	void setPalette(const byte *colors, uint start, uint num);
 	void lockPalette(uint startRW, uint endRW) { _lockPaletteStartRW = startRW; _lockPaletteEndRW = endRW; }
 	void unlockPalette() { _lockPaletteStartRW = 0; _lockPaletteEndRW = 255; }
-	void fadeOutPalette();
-	void fadeInPalette(const byte *colors);
+	void fadeOutPalette(bool surEcran = true);
+	void fadeInPalette(const byte *colors, bool surEcran = true);
 	void setBlackPalette();
 
 	void setHNMClipping(const Common::Rect &clip) { _hnmClipping = clip; _hnmHasClip = true; }

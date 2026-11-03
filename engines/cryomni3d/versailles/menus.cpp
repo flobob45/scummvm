@@ -1085,7 +1085,7 @@ void CryOmni3DEngine_Versailles::displayCredits() {
 						// Just display palette
 						setPalette(palette, 0, 256);
 					} else {
-						fadeInPalette(palette);
+						fadeInPalette(palette, false);
 					}
 					skipScreen = false;
 					// Wait
@@ -1118,7 +1118,7 @@ void CryOmni3DEngine_Versailles::displayCredits() {
 						}
 					}
 					if (!skipScreen) {
-						fadeOutPalette();
+						fadeOutPalette(false);
 						fillSurface(0);
 					}
 					currentY = 0;

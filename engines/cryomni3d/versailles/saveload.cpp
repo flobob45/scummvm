@@ -36,6 +36,14 @@ Common::Error CryOmni3DEngine_Versailles::loadGameState(int slot) {
 }
 
 Common::Error CryOmni3DEngine_Versailles::saveGameState(int slot, const Common::String &desc, bool isAutosave) {
+	// Le moteur d'origine ignorait completement les sauvegardes automatiques :
+	// ScummVM les declenche sur le slot 0, qui devient le slot 1 apres decalage,
+	// soit le "bootstrap visit" que saveGame refuse d'ecraser. En visite libre,
+	// chaque autosave (toutes les 5 min par defaut) faisait donc planter le jeu.
+	// On les ignore plutot que de tuer la partie.
+	if (isAutosave && _isVisiting) {
+		return Common::kNoError;
+	}
 	saveGame(_isVisiting, slot + 1, desc);
 	return Common::kNoError;
 }

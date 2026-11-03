@@ -704,7 +704,7 @@ void CryOmni3DEngine::drawSurfaceWithFade(const Graphics::Surface &source, int f
 	                           _fadeBuffer.w, _fadeBuffer.h);
 }
 
-void CryOmni3DEngine::fadeOutPalette() {
+void CryOmni3DEngine::fadeOutPalette(bool surEcran) {
 	byte palOut[256 * 3];
 	uint16 palWork[256 * 3];
 	uint16 delta[256 * 3];
@@ -727,7 +727,7 @@ void CryOmni3DEngine::fadeOutPalette() {
 			palOut[i] = palWork[i] >> 8;
 		}
 		setPalette(palOut, 0, 256);
-		if (g_system->getScreenFormat().bytesPerPixel != 1) {
+		if (surEcran && g_system->getScreenFormat().bytesPerPixel != 1) {
 			drawComposedWithFade(256 - (int)((step + 1) * 256 / 25));
 		}
 		// Wait 50ms between each steps but refresh screen every 10ms
@@ -743,7 +743,7 @@ void CryOmni3DEngine::fadeOutPalette() {
 	clearKeys();
 }
 
-void CryOmni3DEngine::fadeInPalette(const byte *palette) {
+void CryOmni3DEngine::fadeInPalette(const byte *palette, bool surEcran) {
 	byte palOut[256 * 3];
 	uint16 palWork[256 * 3];
 	uint16 delta[256 * 3];
@@ -768,7 +768,7 @@ void CryOmni3DEngine::fadeInPalette(const byte *palette) {
 			palOut[i] = palWork[i] >> 8;
 		}
 		setPalette(palOut, 0, 256);
-		if (ecranRGB && sauvegarde.w > 0) {
+		if (surEcran && ecranRGB && sauvegarde.w > 0) {
 			drawSurfaceWithFade(sauvegarde, (int)((step + 1) * 256 / 25));
 		}
 		// Wait 50ms between each steps but refresh screen every 10ms
@@ -779,7 +779,7 @@ void CryOmni3DEngine::fadeInPalette(const byte *palette) {
 		}
 	}
 	setPalette(palette, 0, 256);
-	if (ecranRGB && sauvegarde.w > 0) {
+	if (surEcran && ecranRGB && sauvegarde.w > 0) {
 		drawSurfaceWithFade(sauvegarde, 256);
 	}
 	pollEvents();
