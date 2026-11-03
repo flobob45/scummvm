@@ -201,6 +201,14 @@ static Common::Error runGame(const Plugin *enginePlugin, OSystem &system, const 
 	// backend to switch from Surface SDL to OpenGL if necessary. This is
 	// needed because otherwise the g_system->getSupportedFormats might return
 	// bad values.
+	// Chantier Versailles HD : le rendu depend d'OpenGL (synchronisation avant
+	// permutation des tampons — cf. le glFinish d'openglsdl-graphics.cpp — et
+	// mise a l'echelle GPU vers la fenetre native). Forcer ici evite qu'une
+	// configuration heritee ou un passage par le menu graphique repasse en
+	// SurfaceSDL, ou les artefacts noirs reviennent et ou la presentation est
+	// plus lente.
+	ConfMan.set("gfx_mode", "opengl");
+
 	g_system->beginGFXTransaction();
 		g_system->setGraphicsMode(ConfMan.get("gfx_mode").c_str());
 	if (g_system->endGFXTransaction() != OSystem::kTransactionSuccess) {
